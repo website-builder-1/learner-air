@@ -15,11 +15,7 @@ import {
   Bell, 
   Users, 
   BookOpen, 
-  UserPlus, 
-  Settings,
-  Calendar,
-  ChevronRight,
-  BarChart,
+  UserPlus,
   CheckCircle,
   XCircle
 } from 'lucide-react';
@@ -68,6 +64,30 @@ const SAMPLE_ANNOUNCEMENTS = [
     date: '2023-09-18',
     author: 'Ms. Davis',
     target: 'All Students'
+  }
+];
+
+const SAMPLE_HOMEWORKS = [
+  {
+    id: '1',
+    title: 'Math - Algebra Problems',
+    description: 'Sets 4-6 on page 128',
+    dueDate: new Date(Date.now() + 86400000), // Tomorrow
+    subject: 'Math'
+  },
+  {
+    id: '2',
+    title: 'English - Essay',
+    description: 'Comparison of themes',
+    dueDate: new Date(Date.now() + 259200000), // 3 days
+    subject: 'English'
+  },
+  {
+    id: '3',
+    title: 'Science - Lab Report',
+    description: 'Write up of chemistry experiment',
+    dueDate: new Date(Date.now() + 432000000), // 5 days
+    subject: 'Science'
   }
 ];
 
@@ -139,6 +159,35 @@ const AnnouncementCard = ({ announcement }: { announcement: typeof SAMPLE_ANNOUN
   );
 };
 
+// Homework card component
+const HomeworkCard = ({ homework }: { homework: typeof SAMPLE_HOMEWORKS[0] }) => {
+  const today = new Date();
+  const dueDate = new Date(homework.dueDate);
+  const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+  
+  let dueDateText = `${daysDiff} days`;
+  let dueDateClass = "text-gray-500";
+  
+  if (daysDiff <= 1) {
+    dueDateText = "Tomorrow";
+    dueDateClass = "text-amber-600";
+  } else if (daysDiff <= 2) {
+    dueDateClass = "text-amber-500";
+  }
+  
+  return (
+    <div className="p-3 bg-gray-50 rounded-lg">
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="font-medium">{homework.title}</div>
+          <div className="text-sm text-gray-500">{homework.description}</div>
+        </div>
+        <div className={`text-sm ${dueDateClass}`}>{dueDateText}</div>
+      </div>
+    </div>
+  );
+};
+
 // Quick action component
 const QuickAction = ({ 
   icon: Icon, 
@@ -178,7 +227,7 @@ const Dashboard = () => {
           <p className="text-gray-500">
             {user.role === 'headteacher' && 'Manage your school with these tools'}
             {user.role === 'teacher' && 'Track your students and their progress'}
-            {user.role === 'student' && 'Track your rewards, sanctions, and announcements'}
+            {user.role === 'student' && 'Track your rewards and announcements'}
           </p>
         </div>
 
@@ -190,9 +239,9 @@ const Dashboard = () => {
               <>
                 <QuickAction icon={UserPlus} label="Add User" to="/users" color="text-learner-500" />
                 <QuickAction icon={Users} label="Manage Users" to="/users" />
-                <QuickAction icon={Settings} label="Settings" to="/dashboard" />
-                <QuickAction icon={Calendar} label="Calendar" to="/dashboard" />
-                <QuickAction icon={BarChart} label="Reports" to="/dashboard" />
+                <QuickAction icon={BookOpen} label="Homework" to="/dashboard" />
+                <QuickAction icon={Award} label="Rewards" to="/dashboard" />
+                <QuickAction icon={AlertTriangle} label="Sanctions" to="/dashboard" />
                 <QuickAction icon={Bell} label="Announcements" to="/announcements" />
               </>
             )}
@@ -203,13 +252,15 @@ const Dashboard = () => {
                 <QuickAction icon={Bell} label="Announcements" to="/announcements" />
                 <QuickAction icon={Award} label="Rewards" to="/dashboard" />
                 <QuickAction icon={AlertTriangle} label="Sanctions" to="/dashboard" />
+                {user.permissions.includes('add_users') && (
+                  <QuickAction icon={UserPlus} label="Manage Users" to="/users" />
+                )}
               </>
             )}
             {user.role === 'student' && (
               <>
                 <QuickAction icon={Bell} label="Announcements" to="/announcements" color="text-learner-500" />
                 <QuickAction icon={BookOpen} label="Homework" to="/dashboard" />
-                <QuickAction icon={Award} label="Rewards" to="/dashboard" />
               </>
             )}
           </div>
@@ -219,47 +270,143 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Student Activity Feed */}
+            {/* Student Homework Section */}
             {user.role === 'student' && (
               <Card style={getStaggeredStyle(2)}>
                 <CardHeader className="pb-2">
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your recent rewards and sanctions</CardDescription>
+                  <CardTitle>Homework Due</CardTitle>
+                  <CardDescription>Your upcoming assignments</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {SAMPLE_ACTIVITIES.map(activity => (
-                    <ActivityCard key={activity.id} activity={activity} />
+                  {SAMPLE_HOMEWORKS.map(homework => (
+                    <HomeworkCard key={homework.id} homework={homework} />
                   ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Teacher Homework Management */}
+            {user.role === 'teacher' && (
+              <Card style={getStaggeredStyle(2)}>
+                <CardHeader className="pb-2">
+                  <CardTitle>Homework Management</CardTitle>
+                  <CardDescription>Assign and track student homework</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Assigned</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-medium">12</div>
+                        <div className="text-sm text-gray-500">Last 30 days</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Pending Grading</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-medium">5</div>
+                        <div className="text-sm text-gray-500">Submissions</div>
+                      </CardContent>
+                    </Card>
+                  </div>
                   
-                  <div className="text-center pt-2">
-                    <Button variant="ghost" className="text-learner-500 hover:text-learner-600 hover:bg-learner-50">
-                      View all activity
+                  <div className="mt-4">
+                    <h3 className="font-medium mb-3">Recent Assignments</h3>
+                    <div className="space-y-3">
+                      {SAMPLE_HOMEWORKS.map(homework => (
+                        <div key={homework.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <div className="font-medium">{homework.title}</div>
+                            <div className="text-sm text-gray-500">Class 10A</div>
+                          </div>
+                          <Button variant="outline" size="sm">View</Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="text-center mt-4">
+                    <Button className="bg-learner-500 hover:bg-learner-600">
+                      Create New Assignment
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Headteacher & Teacher Stats */}
-            {(user.role === 'headteacher' || user.role === 'teacher') && (
+            {/* Teacher Rewards & Sanctions */}
+            {user.role === 'teacher' && (
+              <Card style={getStaggeredStyle(3)}>
+                <CardHeader className="pb-2">
+                  <CardTitle>Rewards & Sanctions</CardTitle>
+                  <CardDescription>Manage student behavior and recognition</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Award className="text-green-500" size={18} />
+                          Rewards Given
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-medium">24</div>
+                        <div className="text-sm text-gray-500">Last 30 days</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <AlertTriangle className="text-amber-500" size={18} />
+                          Sanctions Issued
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-medium">8</div>
+                        <div className="text-sm text-gray-500">Last 30 days</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="flex gap-4 mt-6">
+                    <Button className="flex-1 bg-green-500 hover:bg-green-600">
+                      <Award className="mr-2" size={16} />
+                      Issue Reward
+                    </Button>
+                    <Button className="flex-1 bg-amber-500 hover:bg-amber-600">
+                      <AlertTriangle className="mr-2" size={16} />
+                      Issue Sanction
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Headteacher Stats */}
+            {user.role === 'headteacher' && (
               <Card style={getStaggeredStyle(2)}>
                 <CardHeader className="pb-2">
                   <CardTitle>Overview</CardTitle>
                   <CardDescription>
-                    {user.role === 'headteacher' ? 'School-wide statistics' : 'Your class statistics'}
+                    School-wide statistics
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-500 mb-1">Students</div>
-                      <div className="text-2xl font-medium">{user.role === 'headteacher' ? '1,248' : '28'}</div>
+                      <div className="text-2xl font-medium">1,248</div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-500 mb-1">
-                        {user.role === 'headteacher' ? 'Teachers' : 'Classes'}
+                        Teachers
                       </div>
-                      <div className="text-2xl font-medium">{user.role === 'headteacher' ? '64' : '3'}</div>
+                      <div className="text-2xl font-medium">64</div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-500 mb-1">Rewards</div>
@@ -288,7 +435,7 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle>Announcements</CardTitle>
                   <Link to="/announcements" className="text-sm text-learner-500 flex items-center gap-1">
-                    View all <ChevronRight size={14} />
+                    View all <span className="ml-1">→</span>
                   </Link>
                 </div>
                 <CardDescription>Latest updates and news</CardDescription>
@@ -300,7 +447,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
             
-            {/* Role-specific widgets */}
+            {/* System Status for headteacher */}
             {user.role === 'headteacher' && (
               <Card style={getStaggeredStyle(4)}>
                 <CardHeader className="pb-2">
@@ -340,53 +487,24 @@ const Dashboard = () => {
               </Card>
             )}
             
-            {user.role === 'teacher' && (
-              <Card style={getStaggeredStyle(4)}>
-                <CardHeader className="pb-2">
-                  <CardTitle>To-Do List</CardTitle>
-                  <CardDescription>Your pending tasks</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded border border-gray-300"></div>
-                    <span>Grade science homework</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded border border-gray-300"></div>
-                    <span>Prepare lesson plan</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded border border-gray-300"></div>
-                    <span>Call parent of John D.</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
+            {/* Student activities (rewards for students) */}
             {user.role === 'student' && (
               <Card style={getStaggeredStyle(4)}>
                 <CardHeader className="pb-2">
-                  <CardTitle>Homework Due</CardTitle>
-                  <CardDescription>Your upcoming assignments</CardDescription>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>Your recent rewards</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium">Math - Algebra Problems</div>
-                        <div className="text-sm text-gray-500">Sets 4-6 on page 128</div>
-                      </div>
-                      <div className="text-sm text-amber-600">Tomorrow</div>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium">English - Essay</div>
-                        <div className="text-sm text-gray-500">Comparison of themes</div>
-                      </div>
-                      <div className="text-sm text-gray-500">3 days</div>
-                    </div>
+                  {SAMPLE_ACTIVITIES
+                    .filter(activity => activity.type === 'reward')
+                    .map(activity => (
+                      <ActivityCard key={activity.id} activity={activity} />
+                    ))}
+                  
+                  <div className="text-center pt-2">
+                    <Button variant="ghost" className="text-learner-500 hover:text-learner-600 hover:bg-learner-50">
+                      View all activity
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
