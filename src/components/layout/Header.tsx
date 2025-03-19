@@ -58,7 +58,6 @@ export const Header = () => {
         <Link 
           to="/" 
           className="flex items-center gap-2"
-          style={useEntrance()}
         >
           <div className="w-10 h-10 rounded-lg bg-learner-500 flex items-center justify-center">
             <span className="text-white font-display font-bold text-xl">L</span>
@@ -79,7 +78,6 @@ export const Header = () => {
                   ? 'text-learner-700 bg-learner-50'
                   : 'text-gray-600 hover:text-learner-600 hover:bg-learner-50/50'
               }`}
-              style={useEntrance(100 + index * 50)}
             >
               {item.name}
             </Link>
@@ -91,7 +89,6 @@ export const Header = () => {
                 <Button 
                   variant="ghost" 
                   className="ml-2 gap-2 hover:bg-learner-50"
-                  style={useEntrance(100 + navItems.length * 50)}
                 >
                   <User size={18} />
                   <span className="font-medium">{user.fullName}</span>
@@ -122,7 +119,7 @@ export const Header = () => {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[60px] bg-white/95 backdrop-blur-sm z-40 animate-fade-in">
+        <div className="md:hidden fixed inset-0 top-[60px] bg-white/95 backdrop-blur-sm z-40">
           <nav className="flex flex-col p-5 gap-2">
             {navItems.map((item, i) => (
               <Link
@@ -158,22 +155,5 @@ export const Header = () => {
   );
 };
 
-function useEntrance(delay = 0) {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return {
-    opacity: isVisible ? 1 : 0,
-    transform: isVisible ? 'translateY(0)' : 'translateY(10px)',
-    transition: 'opacity 0.5s ease, transform 0.5s ease',
-  };
-}
-
+// Moved this function outside of the component to avoid hook ordering issues
 export default Header;

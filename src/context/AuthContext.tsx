@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
-import { useNavigate } from 'react-router-dom';
 
 // Define user roles
 export type UserRole = 'headteacher' | 'teacher' | 'student';
@@ -31,7 +30,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   hasPermission: (permission: Permission) => boolean;
 }
@@ -83,7 +82,6 @@ const INITIAL_USERS = [
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const navigate = useNavigate();
 
   // Initialize users in localStorage if they don't exist
   useEffect(() => {
@@ -99,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<void> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
     try {
@@ -118,13 +116,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
         
         toast.success(`Welcome back, ${foundUser.fullName}`);
-        navigate('/dashboard');
+        return true;
       } else {
         toast.error('Invalid username or password');
+        return false;
       }
     } catch (error) {
       toast.error('An error occurred during login');
       console.error('Login error:', error);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +134,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('currentUser');
     toast.success('Logged out successfully');
-    navigate('/login');
   };
 
   const hasPermission = (permission: Permission): boolean => {
