@@ -17,7 +17,15 @@ import StudentProfile from "./pages/StudentProfile";
 import Announcements from "./pages/Announcements";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -90,7 +98,7 @@ const AppWithAuth = () => (
               element={
                 <ProtectedRoute>
                   <RoleRoute 
-                    roles={['headteacher']} 
+                    roles={['headteacher', 'teacher']} 
                     permissions={['add_users']}
                   >
                     <Users />

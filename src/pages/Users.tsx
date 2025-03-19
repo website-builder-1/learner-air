@@ -1,9 +1,7 @@
-
-import { useState } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
-  CardDescription, 
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
@@ -33,7 +31,6 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
-  Check,
   X,
   Eye,
   EyeOff
@@ -75,6 +72,18 @@ const tabs: Tab[] = [
   { value: 'students', label: 'Students' },
 ];
 
+// Initial form state
+const initialFormState = {
+  id: '',
+  username: '',
+  password: '',
+  fullName: '',
+  role: 'student' as UserRole,
+  permissions: [] as Permission[],
+  yearGroup: '',
+  class: ''
+};
+
 const Users = () => {
   const { user, hasPermission } = useAuth();
   const [users, setUsers] = useState(userService.getAllUsers());
@@ -89,42 +98,29 @@ const Users = () => {
   const [isViewCredentialsOpen, setIsViewCredentialsOpen] = useState(false);
   
   // Form state
-  const [formData, setFormData] = useState({
-    id: '',
-    username: '',
-    password: '',
-    fullName: '',
-    role: 'student' as UserRole,
-    permissions: [] as Permission[],
-    yearGroup: '',
-    class: ''
-  });
+  const [formData, setFormData] = useState(initialFormState);
   
   // Get all credentials when viewing them
   const [credentials, setCredentials] = useState<{ id: string; username: string; password: string; fullName: string }[]>([]);
   
+  // Refresh user list
+  const refreshUsers = useCallback(() => {
+    setUsers(userService.getAllUsers());
+  }, []);
+
   // Reset form
-  const resetForm = () => {
-    setFormData({
-      id: '',
-      username: '',
-      password: '',
-      fullName: '',
-      role: 'student',
-      permissions: [],
-      yearGroup: '',
-      class: ''
-    });
-  };
+  const resetForm = useCallback(() => {
+    setFormData(initialFormState);
+  }, []);
   
   // Open add user modal
-  const openAddUserModal = () => {
+  const openAddUserModal = useCallback(() => {
     resetForm();
     setIsAddUserOpen(true);
-  };
+  }, [resetForm]);
   
   // Open edit user modal
-  const openEditUserModal = (userId: string) => {
+  const openEditUserModal = useCallback((userId: string) => {
     const userToEdit = users.find(u => u.id === userId);
     if (userToEdit) {
       setFormData({
@@ -139,39 +135,41 @@ const Users = () => {
       });
       setIsEditUserOpen(true);
     }
-  };
+  }, [users]);
   
   // Open delete user modal
-  const openDeleteUserModal = (userId: string) => {
+  const openDeleteUserModal = useCallback((userId: string) => {
     const userToDelete = users.find(u => u.id === userId);
     if (userToDelete) {
-      setFormData({...formData, id: userId, fullName: userToDelete.fullName});
+      setFormData(prev => ({...prev, id: userId, fullName: userToDelete.fullName}));
       setIsDeleteUserOpen(true);
     }
-  };
+  }, [users]);
   
   // Handle form field changes
-  const handleChange = (field: string, value: any) => {
-    setFormData({...formData, [field]: value});
-  };
+  const handleChange = useCallback((field: string, value: any) => {
+    setFormData(prev => ({...prev, [field]: value}));
+  }, []);
   
   // Toggle permission in form
-  const togglePermission = (permission: Permission) => {
-    if (formData.permissions.includes(permission)) {
-      setFormData({
-        ...formData,
-        permissions: formData.permissions.filter(p => p !== permission)
-      });
-    } else {
-      setFormData({
-        ...formData,
-        permissions: [...formData.permissions, permission]
-      });
-    }
-  };
+  const togglePermission = useCallback((permission: Permission) => {
+    setFormData(prev => {
+      if (prev.permissions.includes(permission)) {
+        return {
+          ...prev,
+          permissions: prev.permissions.filter(p => p !== permission)
+        };
+      } else {
+        return {
+          ...prev,
+          permissions: [...prev.permissions, permission]
+        };
+      }
+    });
+  }, []);
   
   // Create user
-  const handleCreateUser = () => {
+  const handleCreateUser = useCallback(() => {
     if (!formData.username || !formData.password || !formData.fullName) {
       toast.error('Please fill in all required fields');
       return;
@@ -190,12 +188,12 @@ const Users = () => {
     if (success) {
       setIsAddUserOpen(false);
       resetForm();
-      setUsers(userService.getAllUsers()); // Refresh user list
+      refreshUsers(); // Refresh user list
     }
-  };
+  }, [formData, resetForm, refreshUsers]);
   
   // Update user
-  const handleUpdateUser = () => {
+  const handleUpdateUser = useCallback(() => {
     if (!formData.fullName) {
       toast.error('Please fill in all required fields');
       return;
@@ -219,12 +217,12 @@ const Users = () => {
     if (success) {
       setIsEditUserOpen(false);
       resetForm();
-      setUsers(userService.getAllUsers()); // Refresh user list
+      refreshUsers(); // Refresh user list
     }
-  };
+  }, [formData, resetForm, refreshUsers]);
   
   // Delete user
-  const handleDeleteUser = () => {
+  const handleDeleteUser = useCallback(() => {
     if (user?.id === formData.id) {
       toast.error("You cannot delete your own account");
       return;
@@ -235,38 +233,52 @@ const Users = () => {
     if (success) {
       setIsDeleteUserOpen(false);
       resetForm();
-      setUsers(userService.getAllUsers()); // Refresh user list
+      refreshUsers(); // Refresh user list
     }
-  };
+  }, [formData.id, user?.id, resetForm, refreshUsers]);
   
   // View credentials
-  const handleViewCredentials = () => {
+  const handleViewCredentials = useCallback(() => {
     if (hasPermission('view_user_credentials')) {
-      const userCredentials = userService.getUserCredentials();
-      setCredentials(userCredentials);
-      setIsViewCredentialsOpen(true);
+      try {
+        const userCredentials = userService.getUserCredentials();
+        setCredentials(userCredentials);
+        setIsViewCredentialsOpen(true);
+      } catch (error) {
+        console.error('Error fetching credentials:', error);
+        toast.error('Failed to load user credentials');
+      }
     } else {
       toast.error("You don't have permission to view credentials");
     }
-  };
+  }, [hasPermission]);
   
   // Toggle password visibility
-  const togglePasswordVisibility = (userId: string) => {
+  const togglePasswordVisibility = useCallback((userId: string) => {
     setShowPasswordsMap(prev => ({
       ...prev,
       [userId]: !prev[userId]
     }));
-  };
+  }, []);
   
-  // Filter users based on search and active tab
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          user.username.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesTab = activeTab === 'all' || user.role === activeTab.slice(0, -1); // Remove 's' from tab name to match role
-    
-    return matchesSearch && matchesTab;
-  });
+  // Memoize filtered users to prevent unnecessary filtering on each render
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            user.username.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesTab = activeTab === 'all' || 
+                         (activeTab === 'teachers' && (user.role === 'teacher' || user.role === 'headteacher')) || 
+                         (activeTab === 'students' && user.role === 'student');
+      
+      return matchesSearch && matchesTab;
+    });
+  }, [users, searchQuery, activeTab]);
+
+  // Refresh user data when component mounts
+  useEffect(() => {
+    refreshUsers();
+  }, [refreshUsers]);
 
   return (
     <div className="pt-8 pb-16">

@@ -19,11 +19,24 @@ export interface UserCreationData {
 
 class UserService {
   private getUsers(): UserWithPassword[] {
-    return JSON.parse(localStorage.getItem('users') || '[]');
+    const usersJson = localStorage.getItem('users');
+    if (!usersJson) return [];
+    
+    try {
+      return JSON.parse(usersJson);
+    } catch (error) {
+      console.error('Error parsing users from localStorage:', error);
+      return [];
+    }
   }
 
   private saveUsers(users: UserWithPassword[]): void {
-    localStorage.setItem('users', JSON.stringify(users));
+    try {
+      localStorage.setItem('users', JSON.stringify(users));
+    } catch (error) {
+      console.error('Error saving users to localStorage:', error);
+      toast.error('Failed to save user data');
+    }
   }
 
   getAllUsers(): Omit<UserWithPassword, 'password'>[] {
@@ -85,10 +98,14 @@ class UserService {
       // Update current user session if this is the logged in user
       const currentUser = localStorage.getItem('currentUser');
       if (currentUser) {
-        const parsedUser = JSON.parse(currentUser);
-        if (parsedUser.id === id) {
-          const { password, ...userWithoutPassword } = users[userIndex];
-          localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          if (parsedUser.id === id) {
+            const { password, ...userWithoutPassword } = users[userIndex];
+            localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+          }
+        } catch (error) {
+          console.error('Error updating current user:', error);
         }
       }
       
@@ -123,13 +140,18 @@ class UserService {
 
   // Get basic credentials for users - only available to users with view_user_credentials permission
   getUserCredentials(): { id: string; username: string; password: string; fullName: string }[] {
-    const users = this.getUsers();
-    return users.map(({ id, username, password, fullName }) => ({
-      id,
-      username,
-      password,
-      fullName
-    }));
+    try {
+      const users = this.getUsers();
+      return users.map(({ id, username, password, fullName }) => ({
+        id,
+        username,
+        password,
+        fullName
+      }));
+    } catch (error) {
+      console.error('Error getting user credentials:', error);
+      return [];
+    }
   }
 }
 
