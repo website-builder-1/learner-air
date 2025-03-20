@@ -83,14 +83,14 @@ const ActivityPage = () => {
     };
     
     // Load activities
-    const loadActivities = (usersList) => {
+    const loadActivities = (usersList: any[]) => {
       const stored = localStorage.getItem('student_activities');
       if (stored) {
         const allActivities = JSON.parse(stored) || [];
         
         // Enhance activities with student info
         const enhancedActivities = allActivities.map((activity: Activity) => {
-          const student = usersList.find(u => u.id === activity.studentId);
+          const student = usersList.find((u: any) => u.id === activity.studentId);
           if (student) {
             return {
               ...activity,
@@ -223,6 +223,33 @@ const ActivityPage = () => {
     setFilterClass('');
   };
 
+  // Handle deleting activities
+  const handleDeleteActivity = (activityToDelete: Activity) => {
+    const allActivities = JSON.parse(localStorage.getItem('student_activities') || '[]');
+    const updatedActivities = allActivities.filter((activity: Activity) => 
+      !(activity.id === activityToDelete.id && 
+        activity.date === activityToDelete.date && 
+        activity.description === activityToDelete.description)
+    );
+    
+    localStorage.setItem('student_activities', JSON.stringify(updatedActivities));
+    
+    // Update the UI
+    const updatedFilteredActivities = filteredActivities.filter(activity => 
+      !(activity.id === activityToDelete.id && 
+        activity.date === activityToDelete.date && 
+        activity.description === activityToDelete.description)
+    );
+    
+    setActivities(activities.filter(activity => 
+      !(activity.id === activityToDelete.id && 
+        activity.date === activityToDelete.date && 
+        activity.description === activityToDelete.description)
+    ));
+    setFilteredActivities(updatedFilteredActivities);
+    calculateStats(updatedFilteredActivities);
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-[60vh]">Loading...</div>;
   }
@@ -292,7 +319,7 @@ const ActivityPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="">All Year Groups</SelectItem>
+                      <SelectItem value="all">All Year Groups</SelectItem>
                       {getYearGroups().map(year => (
                         <SelectItem key={year} value={year}>Year {year}</SelectItem>
                       ))}
@@ -309,7 +336,7 @@ const ActivityPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="">All Classes</SelectItem>
+                      <SelectItem value="all">All Classes</SelectItem>
                       {getClasses().map(cls => (
                         <SelectItem key={cls} value={cls}>Class {cls}</SelectItem>
                       ))}
@@ -428,12 +455,24 @@ const ActivityPage = () => {
                               )}
                             </div>
                           </div>
-                          <div className="text-sm text-gray-400">
-                            {new Date(activity.date).toLocaleDateString('en-GB', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric'
-                            })}
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-400">
+                              {new Date(activity.date).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </div>
+                            {hasPermission(activity.type === 'reward' ? 'set_rewards' : 'set_sanctions') && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteActivity(activity)}
+                              >
+                                <AlertTriangle size={16} />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </CardContent>

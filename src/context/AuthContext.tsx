@@ -138,6 +138,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const hasPermission = (permission: Permission): boolean => {
     if (!user) return false;
+    
+    // Headteacher has all permissions
+    if (user.role === 'headteacher') return true;
+    
     return user.permissions.includes(permission);
   };
 

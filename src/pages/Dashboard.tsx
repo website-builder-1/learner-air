@@ -52,7 +52,6 @@ import {
   PopoverTrigger 
 } from "@/components/ui/popover";
 
-// Sample homeworks
 const SAMPLE_HOMEWORKS = [
   {
     id: '1',
@@ -80,7 +79,6 @@ const SAMPLE_HOMEWORKS = [
   }
 ];
 
-// Get initial homeworks from localStorage or use sample data
 const getHomeworks = () => {
   const stored = localStorage.getItem('homeworks');
   if (stored) {
@@ -90,7 +88,6 @@ const getHomeworks = () => {
   return SAMPLE_HOMEWORKS;
 };
 
-// Sample announcements data
 const SAMPLE_ANNOUNCEMENTS = [
   {
     id: '1',
@@ -108,14 +105,12 @@ const SAMPLE_ANNOUNCEMENTS = [
   }
 ];
 
-// Get activities from localStorage or initialize
 const getActivities = () => {
   const stored = localStorage.getItem('student_activities');
   if (stored) {
     return JSON.parse(stored);
   }
   
-  // Sample data
   const sampleActivities = [
     {
       id: '1',
@@ -150,17 +145,14 @@ const getActivities = () => {
   return sampleActivities;
 };
 
-// Save activities to localStorage
 const saveActivities = (activities) => {
   localStorage.setItem('student_activities', JSON.stringify(activities));
 };
 
-// Save homeworks to localStorage
 const saveHomeworks = (homeworks) => {
   localStorage.setItem('homeworks', JSON.stringify(homeworks));
 };
 
-// Activity card component for student dashboard
 const ActivityCard = ({ activity, onDelete }) => {
   const isReward = activity.type === 'reward';
   const { user } = useAuth();
@@ -211,7 +203,6 @@ const ActivityCard = ({ activity, onDelete }) => {
   );
 };
 
-// Announcement card component
 const AnnouncementCard = ({ announcement }: { announcement: typeof SAMPLE_ANNOUNCEMENTS[0] }) => {
   return (
     <Card>
@@ -244,7 +235,6 @@ const AnnouncementCard = ({ announcement }: { announcement: typeof SAMPLE_ANNOUN
   );
 };
 
-// Homework card component
 const HomeworkCard = ({ homework, onView }: { homework: any, onView?: (homework: any) => void }) => {
   const today = new Date();
   const dueDate = new Date(homework.dueDate);
@@ -284,7 +274,6 @@ const HomeworkCard = ({ homework, onView }: { homework: any, onView?: (homework:
   );
 };
 
-// Quick action component
 const QuickAction = ({ 
   icon: Icon, 
   label, 
@@ -325,7 +314,6 @@ const QuickAction = ({
   );
 };
 
-// File attachment component for homework modal
 const FileAttachment = ({ file, onRemove }) => {
   return (
     <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
@@ -345,14 +333,12 @@ const FileAttachment = ({ file, onRemove }) => {
   );
 };
 
-// Credentials popup component
 const CredentialsPopup = ({ open, onClose }) => {
   const { user } = useAuth();
   const [credentials, setCredentials] = useState(null);
 
   useEffect(() => {
     if (open && user) {
-      // Fetch user credentials from localStorage
       const users = JSON.parse(localStorage.getItem('users') || '[]');
       const userCredentials = users.find(u => u.id === user.id);
       if (userCredentials) {
@@ -407,14 +393,12 @@ const Dashboard = () => {
     sanctions: 0
   });
 
-  // Modal states
   const [isHomeworkModalOpen, setIsHomeworkModalOpen] = useState(false);
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const [isSanctionModalOpen, setIsSanctionModalOpen] = useState(false);
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
   const [isStudentSearchOpen, setIsStudentSearchOpen] = useState(false);
   
-  // Form data
   const [homeworkForm, setHomeworkForm] = useState({
     title: '',
     description: '',
@@ -438,991 +422,8 @@ const Dashboard = () => {
     studentSearch: ''
   });
 
-  // Student search state
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [filteredStudents, setFilteredStudents] = useState([]);
-  
-  // Load data on component mount
-  useEffect(() => {
-    // Load activities
-    const allActivities = getActivities();
-    if (user?.role === 'student') {
-      // Filter activities for the current student
-      const studentActivities = allActivities.filter(activity => activity.id === user.id);
-      setActivities(studentActivities);
-    } else {
-      // For teachers and headteachers, show all activities
-      setActivities(allActivities);
-    }
 
-    // Load homeworks
-    const allHomeworks = getHomeworks();
-    setHomeworks(allHomeworks);
 
-    // Calculate stats
-    calculateStats();
-  }, [user]);
 
-  // Load students for search
-  useEffect(() => {
-    if (isSanctionModalOpen && sanctionForm.studentSearch) {
-      const students = getStudents();
-      const filtered = students.filter(student => 
-        student.fullName.toLowerCase().includes(sanctionForm.studentSearch.toLowerCase()) ||
-        (student.class && student.class.toLowerCase().includes(sanctionForm.studentSearch.toLowerCase())) ||
-        (student.yearGroup && student.yearGroup.toLowerCase().includes(sanctionForm.studentSearch.toLowerCase()))
-      );
-      setFilteredStudents(filtered);
-    }
-  }, [isSanctionModalOpen, sanctionForm.studentSearch]);
-
-  // Calculate school-wide statistics
-  const calculateStats = () => {
-    // Get all users from localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const allActivities = getActivities();
-    
-    // Count students and teachers
-    const students = users.filter(u => u.role === 'student').length;
-    const teachers = users.filter(u => u.role === 'teacher' || u.role === 'headteacher').length;
-    
-    // Count rewards and sanctions
-    const rewards = allActivities.filter(a => a.type === 'reward').length;
-    const sanctions = allActivities.filter(a => a.type === 'sanction').length;
-    
-    setUsersStats({
-      students,
-      teachers,
-      rewards,
-      sanctions
-    });
-  };
-
-  // Handle homework form change
-  const handleHomeworkFormChange = (field, value) => {
-    setHomeworkForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Handle reward form change
-  const handleRewardFormChange = (field, value) => {
-    setRewardForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Handle sanction form change
-  const handleSanctionFormChange = (field, value) => {
-    setSanctionForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Handle file attachment for homework
-  const handleFileAttachment = (e) => {
-    const files = Array.from(e.target.files || []) as File[];
-    setHomeworkForm(prev => ({
-      ...prev,
-      attachments: [...prev.attachments, ...files] as File[]
-    }));
-  };
-
-  // Remove file attachment
-  const removeFileAttachment = (fileToRemove) => {
-    setHomeworkForm(prev => ({
-      ...prev,
-      attachments: prev.attachments.filter(file => file !== fileToRemove)
-    }));
-  };
-
-  // Create a new homework
-  const handleCreateHomework = () => {
-    if (!homeworkForm.title || !homeworkForm.description || !homeworkForm.dueDate) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    // Convert file attachments to storable format
-    const attachments = homeworkForm.attachments.map(file => ({
-      id: Date.now() + Math.random().toString(36).substring(2, 9),
-      name: file.name,
-      type: file.type,
-      url: URL.createObjectURL(file)
-    }));
-
-    const newHomework = {
-      id: Date.now().toString(),
-      title: homeworkForm.title,
-      description: homeworkForm.description,
-      subject: homeworkForm.subject,
-      class: homeworkForm.class,
-      dueDate: new Date(homeworkForm.dueDate).toISOString(),
-      attachments: attachments.length > 0 ? attachments : undefined
-    };
-
-    const updatedHomeworks = [newHomework, ...homeworks];
-    saveHomeworks(updatedHomeworks);
-    setHomeworks(updatedHomeworks);
-    
-    setIsHomeworkModalOpen(false);
-    setHomeworkForm({
-      title: '',
-      description: '',
-      subject: '',
-      class: '',
-      dueDate: '',
-      attachments: []
-    });
-    
-    toast.success('Homework created successfully');
-  };
-
-  // Create new rewards based on quantity
-  const handleCreateReward = () => {
-    if (!rewardForm.description || !rewardForm.studentId) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    const allActivities = getActivities();
-    const newActivities = [...allActivities];
-
-    // Create multiple rewards based on quantity
-    for (let i = 0; i < rewardForm.quantity; i++) {
-      const newReward = {
-        id: rewardForm.studentId,
-        type: 'reward',
-        description: rewardForm.description,
-        points: rewardForm.points,
-        teacherId: user?.id,
-        teacherName: user?.fullName,
-        date: new Date().toISOString().split('T')[0]
-      };
-      
-      newActivities.unshift(newReward);
-    }
-    
-    saveActivities(newActivities);
-    
-    if (user?.role === 'student') {
-      // Update the activities shown to the student
-      const studentActivities = newActivities.filter(activity => activity.id === user.id);
-      setActivities(studentActivities);
-    } else {
-      setActivities(newActivities);
-    }
-    
-    setIsRewardModalOpen(false);
-    setRewardForm({
-      description: '',
-      points: 1,
-      studentId: '',
-      quantity: 1
-    });
-    
-    // Update statistics
-    calculateStats();
-    
-    toast.success(`${rewardForm.quantity} reward(s) added successfully`);
-  };
-
-  // Create a new sanction
-  const handleCreateSanction = () => {
-    if (!sanctionForm.description || !sanctionForm.studentId) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    const newSanction = {
-      id: sanctionForm.studentId,
-      type: 'sanction',
-      description: sanctionForm.description,
-      sanctionType: sanctionForm.sanctionType,
-      teacherId: user?.id,
-      teacherName: user?.fullName,
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    const allActivities = getActivities();
-    const updatedActivities = [newSanction, ...allActivities];
-    saveActivities(updatedActivities);
-    
-    if (user?.role === 'student') {
-      // Update the activities shown to the student
-      const studentActivities = updatedActivities.filter(activity => activity.id === user.id);
-      setActivities(studentActivities);
-    } else {
-      setActivities(updatedActivities);
-    }
-    
-    setIsSanctionModalOpen(false);
-    setSanctionForm({
-      description: '',
-      sanctionType: 'Lunchtime Detention',
-      studentId: '',
-      studentSearch: ''
-    });
-    
-    // Update statistics
-    calculateStats();
-    
-    toast.success('Sanction added successfully');
-  };
-
-  // Delete an activity (reward or sanction)
-  const handleDeleteActivity = (activity) => {
-    const allActivities = getActivities();
-    const updatedActivities = allActivities.filter(a => 
-      !(a.id === activity.id && 
-        a.date === activity.date && 
-        a.description === activity.description)
-    );
-    
-    saveActivities(updatedActivities);
-    
-    if (user?.role === 'student') {
-      // Update the activities shown to the student
-      const studentActivities = updatedActivities.filter(a => a.id === user.id);
-      setActivities(studentActivities);
-    } else {
-      setActivities(updatedActivities);
-    }
-    
-    // Update statistics
-    calculateStats();
-    
-    toast.success(`${activity.type === 'reward' ? 'Reward' : 'Sanction'} deleted successfully`);
-  };
-
-  // Get all students for the select dropdowns
-  const getStudents = () => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    return users.filter(u => u.role === 'student');
-  };
-
-  // Handle selecting a student from search results
-  const handleSelectStudent = (student) => {
-    setSanctionForm(prev => ({
-      ...prev,
-      studentId: student.id,
-      studentSearch: student.fullName
-    }));
-    setFilteredStudents([]);
-  };
-
-  if (!user) return null;
-
-  return (
-    <div className="pt-8 pb-16">
-      <div className="container px-4 mx-auto">
-        {/* Welcome header */}
-        <div className="mb-8" style={getStaggeredStyle(0)}>
-          <h1 className="text-2xl md:text-3xl font-display font-medium mb-2">
-            Welcome back, {user.fullName}
-          </h1>
-          <p className="text-gray-500">
-            {user.role === 'headteacher' && 'Manage your school with these tools'}
-            {user.role === 'teacher' && 'Track your students and their progress'}
-            {user.role === 'student' && 'Track your rewards and announcements'}
-          </p>
-        </div>
-
-        {/* Quick actions */}
-        <div className="mb-8 bg-gray-50 rounded-xl p-6" style={getStaggeredStyle(1)}>
-          <h2 className="text-lg font-medium mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-6">
-            {user.role === 'headteacher' && (
-              <>
-                <QuickAction icon={UserPlus} label="Add User" to="/users" color="text-learner-500" />
-                <QuickAction icon={Users} label="Manage Users" to="/users" />
-                <QuickAction 
-                  icon={BookOpen} 
-                  label="Homework" 
-                  color="text-blue-500"
-                  onClick={() => setIsHomeworkModalOpen(true)} 
-                />
-                <QuickAction 
-                  icon={Award} 
-                  label="Rewards" 
-                  color="text-green-500"
-                  onClick={() => setIsRewardModalOpen(true)} 
-                />
-                <QuickAction 
-                  icon={AlertTriangle} 
-                  label="Sanctions" 
-                  color="text-amber-500"
-                  onClick={() => setIsSanctionModalOpen(true)} 
-                />
-                <QuickAction icon={Bell} label="Announcements" to="/announcements" />
-              </>
-            )}
-            {user.role === 'teacher' && (
-              <>
-                <QuickAction icon={Users} label="Students" to="/student-search" color="text-learner-500" />
-                <QuickAction 
-                  icon={BookOpen} 
-                  label="Homework" 
-                  color="text-blue-500"
-                  onClick={() => setIsHomeworkModalOpen(true)} 
-                />
-                <QuickAction icon={Bell} label="Announcements" to="/announcements" />
-                <QuickAction 
-                  icon={Award} 
-                  label="Rewards" 
-                  color="text-green-500"
-                  onClick={() => setIsRewardModalOpen(true)}
-                  disabled={!user.permissions.includes('set_rewards')}
-                />
-                <QuickAction 
-                  icon={AlertTriangle} 
-                  label="Sanctions" 
-                  color="text-amber-500"
-                  onClick={() => setIsSanctionModalOpen(true)}
-                  disabled={!user.permissions.includes('set_sanctions')} 
-                />
-                <QuickAction 
-                  icon={Search} 
-                  label="Activity" 
-                  color="text-purple-500"
-                  to="/activity"
-                />
-              </>
-            )}
-            {user.role === 'student' && (
-              <>
-                <QuickAction icon={Bell} label="Announcements" to="/announcements" color="text-learner-500" />
-                <QuickAction icon={BookOpen} label="Homework" to="/homework" color="text-blue-500" />
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Main content - varies by role */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Student Homework Section */}
-            {user.role === 'student' && (
-              <Card style={getStaggeredStyle(2)}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle>Homework Due</CardTitle>
-                      <CardDescription>Your upcoming assignments</CardDescription>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/homework')}>
-                      View all
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {homeworks.length === 0 ? (
-                    <div className="text-center py-8">
-                      <BookOpen className="mx-auto h-12 w-12 text-gray-300 mb-3" />
-                      <p className="text-gray-500">No homework assignments due</p>
-                    </div>
-                  ) : (
-                    homeworks.slice(0, 3).map(homework => (
-                      <HomeworkCard key={homework.id} homework={homework} />
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Teacher Homework Management */}
-            {user.role === 'teacher' && (
-              <Card style={getStaggeredStyle(2)}>
-                <CardHeader className="pb-2">
-                  <CardTitle>Homework Management</CardTitle>
-                  <CardDescription>Assign and track student homework</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Assigned</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-medium">{homeworks.length}</div>
-                        <div className="text-sm text-gray-500">Total assignments</div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Pending Grading</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-medium">5</div>
-                        <div className="text-sm text-gray-500">Submissions</div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  <div className="mt-4">
-                    <h3 className="font-medium mb-3">Recent Assignments</h3>
-                    <div className="space-y-3">
-                      {homeworks.slice(0, 3).map(homework => (
-                        <div key={homework.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <div className="font-medium">{homework.title}</div>
-                            <div className="text-sm text-gray-500">{homework.class || 'All Classes'}</div>
-                          </div>
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/homework/${homework.id}`)}>View</Button>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="text-center mt-4">
-                      <Button 
-                        className="bg-learner-500 hover:bg-learner-600"
-                        onClick={() => setIsHomeworkModalOpen(true)}
-                      >
-                        Create New Assignment
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Teacher Rewards & Sanctions */}
-            {user.role === 'teacher' && (
-              <Card style={getStaggeredStyle(3)}>
-                <CardHeader className="pb-2">
-                  <CardTitle>Rewards & Sanctions</CardTitle>
-                  <CardDescription>Manage student behavior and recognition</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Award className="text-green-500" size={18} />
-                          Rewards Given
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-medium">{activities.filter(a => a.type === 'reward').length}</div>
-                        <div className="text-sm text-gray-500">Total</div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <AlertTriangle className="text-amber-500" size={18} />
-                          Sanctions Issued
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-medium">{activities.filter(a => a.type === 'sanction').length}</div>
-                        <div className="text-sm text-gray-500">Total</div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  <div className="flex gap-4 mt-6">
-                    <Button 
-                      className="flex-1 bg-green-500 hover:bg-green-600"
-                      onClick={() => setIsRewardModalOpen(true)}
-                      disabled={!user.permissions.includes('set_rewards')}
-                    >
-                      <Award className="mr-2" size={16} />
-                      Issue Reward
-                    </Button>
-                    <Button 
-                      className="flex-1 bg-amber-500 hover:bg-amber-600"
-                      onClick={() => setIsSanctionModalOpen(true)}
-                      disabled={!user.permissions.includes('set_sanctions')}
-                    >
-                      <AlertTriangle className="mr-2" size={16} />
-                      Issue Sanction
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Headteacher Stats */}
-            {user.role === 'headteacher' && (
-              <Card style={getStaggeredStyle(2)}>
-                <CardHeader className="pb-2">
-                  <CardTitle>Overview</CardTitle>
-                  <CardDescription>
-                    School-wide statistics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-500 mb-1">Students</div>
-                      <div className="text-2xl font-medium">{usersStats.students}</div>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-500 mb-1">
-                        Teachers
-                      </div>
-                      <div className="text-2xl font-medium">{usersStats.teachers}</div>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-500 mb-1">Rewards</div>
-                      <div className="text-2xl font-medium">{usersStats.rewards}</div>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-500 mb-1">Sanctions</div>
-                      <div className="text-2xl font-medium">{usersStats.sanctions}</div>
-                    </div>
-                  </div>
-
-                  <h3 className="font-medium mb-3">Recent Performance</h3>
-                  <div className="h-36 bg-gray-50 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-400">Performance chart placeholder</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Right column */}
-          <div className="space-y-6">
-            {/* Announcements for all roles */}
-            <Card style={getStaggeredStyle(3)}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle>Announcements</CardTitle>
-                  <Link to="/announcements" className="text-sm text-learner-500 flex items-center gap-1">
-                    View all <span className="ml-1">→</span>
-                  </Link>
-                </div>
-                <CardDescription>Latest updates and news</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {SAMPLE_ANNOUNCEMENTS.map(announcement => (
-                  <AnnouncementCard key={announcement.id} announcement={announcement} />
-                ))}
-              </CardContent>
-            </Card>
-            
-            {/* System Status for headteacher */}
-            {user.role === 'headteacher' && (
-              <Card style={getStaggeredStyle(4)}>
-                <CardHeader className="pb-2">
-                  <CardTitle>System Status</CardTitle>
-                  <CardDescription>Important system information</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-2 items-center">
-                      <CheckCircle className="text-green-500" size={18} />
-                      <span>User accounts</span>
-                    </div>
-                    <span className="text-sm text-green-500">Online</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-2 items-center">
-                      <CheckCircle className="text-green-500" size={18} />
-                      <span>Announcements</span>
-                    </div>
-                    <span className="text-sm text-green-500">Online</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-2 items-center">
-                      <CheckCircle className="text-green-500" size={18} />
-                      <span>Activity tracking</span>
-                    </div>
-                    <span className="text-sm text-green-500">Online</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-2 items-center">
-                      <XCircle className="text-amber-500" size={18} />
-                      <span>Report generator</span>
-                    </div>
-                    <span className="text-sm text-amber-500">Maintenance</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {/* Student activities (rewards and sanctions for students) */}
-            {user.role === 'student' && (
-              <Card style={getStaggeredStyle(4)}>
-                <CardHeader className="pb-2">
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your recent rewards and sanctions</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {activities.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-500">No activities yet</p>
-                    </div>
-                  ) : (
-                    activities.map((activity, index) => (
-                      <ActivityCard 
-                        key={`${activity.id}-${index}`} 
-                        activity={activity} 
-                        onDelete={handleDeleteActivity}
-                      />
-                    ))
-                  )}
-                  
-                  <div className="text-center pt-2">
-                    <Button variant="ghost" className="text-learner-500 hover:text-learner-600 hover:bg-learner-50">
-                      View all activity
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Create Homework Modal */}
-      <Dialog open={isHomeworkModalOpen} onOpenChange={setIsHomeworkModalOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Create New Homework</DialogTitle>
-            <DialogDescription>
-              Assign homework to students
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                value={homeworkForm.title}
-                onChange={(e) => handleHomeworkFormChange('title', e.target.value)}
-                placeholder="Homework title"
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={homeworkForm.description}
-                onChange={(e) => handleHomeworkFormChange('description', e.target.value)}
-                placeholder="Detailed instructions for the homework"
-                className="min-h-[100px]"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  value={homeworkForm.subject}
-                  onChange={(e) => handleHomeworkFormChange('subject', e.target.value)}
-                  placeholder="e.g. Math, English"
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="class">Class</Label>
-                <Input
-                  id="class"
-                  value={homeworkForm.class}
-                  onChange={(e) => handleHomeworkFormChange('class', e.target.value)}
-                  placeholder="e.g. 10A, 11B"
-                />
-              </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="dueDate">Due Date</Label>
-              <Input
-                id="dueDate"
-                type="date"
-                value={homeworkForm.dueDate}
-                onChange={(e) => handleHomeworkFormChange('dueDate', e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="attachments">Attachments</Label>
-              <div className="flex items-center gap-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="flex items-center gap-2" 
-                  onClick={() => document.getElementById('file-upload').click()}
-                >
-                  <Paperclip size={16} />
-                  <span>Attach Files</span>
-                </Button>
-                <Input
-                  type="file"
-                  id="file-upload"
-                  className="hidden"
-                  onChange={handleFileAttachment}
-                  multiple
-                />
-                <span className="text-sm text-gray-500">
-                  {homeworkForm.attachments.length} file(s) attached
-                </span>
-              </div>
-              
-              {homeworkForm.attachments.length > 0 && (
-                <div className="mt-2 space-y-2 max-h-32 overflow-y-auto p-2 border rounded-md">
-                  {homeworkForm.attachments.map((file, index) => (
-                    <FileAttachment 
-                      key={index} 
-                      file={file} 
-                      onRemove={removeFileAttachment} 
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsHomeworkModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateHomework}>
-              Create Homework
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Reward Modal */}
-      <Dialog open={isRewardModalOpen} onOpenChange={setIsRewardModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Issue Reward</DialogTitle>
-            <DialogDescription>
-              Recognize positive behavior and achievements
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="studentId">Student</Label>
-              <Select 
-                value={rewardForm.studentId} 
-                onValueChange={(value) => handleRewardFormChange('studentId', value)}
-              >
-                <SelectTrigger id="studentId">
-                  <SelectValue placeholder="Select student" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Students</SelectLabel>
-                    {getStudents().map(student => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.fullName} ({student.yearGroup || 'No Year'}, {student.class || 'No Class'})
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={rewardForm.description}
-                onChange={(e) => handleRewardFormChange('description', e.target.value)}
-                placeholder="Describe the positive behavior or achievement"
-                className="min-h-[100px]"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="points">Points</Label>
-                <Select 
-                  value={rewardForm.points.toString()} 
-                  onValueChange={(value) => handleRewardFormChange('points', parseInt(value))}
-                >
-                  <SelectTrigger id="points">
-                    <SelectValue placeholder="Select points" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Point Values</SelectLabel>
-                      <SelectItem value="1">1 Point</SelectItem>
-                      <SelectItem value="2">2 Points</SelectItem>
-                      <SelectItem value="3">3 Points</SelectItem>
-                      <SelectItem value="5">5 Points</SelectItem>
-                      <SelectItem value="10">10 Points</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="quantity">Quantity</Label>
-                <Select 
-                  value={rewardForm.quantity.toString()} 
-                  onValueChange={(value) => handleRewardFormChange('quantity', parseInt(value))}
-                >
-                  <SelectTrigger id="quantity">
-                    <SelectValue placeholder="Select quantity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Reward Quantity</SelectLabel>
-                      <SelectItem value="1">1 Reward</SelectItem>
-                      <SelectItem value="2">2 Rewards</SelectItem>
-                      <SelectItem value="3">3 Rewards</SelectItem>
-                      <SelectItem value="4">4 Rewards</SelectItem>
-                      <SelectItem value="5">5 Rewards</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRewardModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateReward}
-              className="bg-green-500 hover:bg-green-600"
-            >
-              <CheckCircle className="mr-2 h-4 w-4" /> Add Reward
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Create Sanction Modal */}
-      <Dialog open={isSanctionModalOpen} onOpenChange={setIsSanctionModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Issue Sanction</DialogTitle>
-            <DialogDescription>
-              Document behavior that needs improvement
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="studentId">Student</Label>
-              <div className="relative">
-                <Input
-                  id="studentSearch"
-                  value={sanctionForm.studentSearch}
-                  onChange={(e) => handleSanctionFormChange('studentSearch', e.target.value)}
-                  placeholder="Search for student by name, year, or class"
-                  className="pr-8"
-                />
-                <Search className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                
-                {filteredStudents.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full border rounded-md bg-white shadow-lg max-h-52 overflow-y-auto">
-                    {filteredStudents.map(student => (
-                      <div 
-                        key={student.id} 
-                        className="p-2 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => handleSelectStudent(student)}
-                      >
-                        <div className="font-medium">{student.fullName}</div>
-                        <div className="text-xs text-gray-500">
-                          {student.yearGroup && `Year ${student.yearGroup}`} 
-                          {student.class && `, Class ${student.class}`}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {!sanctionForm.studentId && (
-                <div className="text-sm text-gray-500 mt-1">
-                  Search for a student above or select from the dropdown below
-                </div>
-              )}
-              
-              <Select 
-                value={sanctionForm.studentId} 
-                onValueChange={(value) => {
-                  const student = getStudents().find(s => s.id === value);
-                  handleSanctionFormChange('studentId', value);
-                  if (student) {
-                    handleSanctionFormChange('studentSearch', student.fullName);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Or select student from list" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Students</SelectLabel>
-                    {getStudents().map(student => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.fullName} ({student.yearGroup || 'No Year'}, {student.class || 'No Class'})
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="sanctionDescription">Description</Label>
-              <Textarea
-                id="sanctionDescription"
-                value={sanctionForm.description}
-                onChange={(e) => handleSanctionFormChange('description', e.target.value)}
-                placeholder="Describe the behavior requiring improvement"
-                className="min-h-[100px]"
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="sanctionType">Sanction Type</Label>
-              <Select 
-                value={sanctionForm.sanctionType} 
-                onValueChange={(value) => handleSanctionFormChange('sanctionType', value)}
-              >
-                <SelectTrigger id="sanctionType">
-                  <SelectValue placeholder="Select sanction type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Sanction Types</SelectLabel>
-                    <SelectItem value="Lunchtime Detention">Lunchtime Detention</SelectItem>
-                    <SelectItem value="After School Detention">After School Detention</SelectItem>
-                    <SelectItem value="Wednesday Detention">Wednesday Detention</SelectItem>
-                    <SelectItem value="Internal Inclusion">Internal Inclusion</SelectItem>
-                    <SelectItem value="Inclusion">Inclusion</SelectItem>
-                    <SelectItem value="Parent Meeting">Parent Meeting</SelectItem>
-                    <SelectItem value="Verbal Warning">Verbal Warning</SelectItem>
-                    <SelectItem value="Written Warning">Written Warning</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSanctionModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateSanction}
-              className="bg-amber-500 hover:bg-amber-600"
-            >
-              <XCircle className="mr-2 h-4 w-4" /> Add Sanction
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* User credentials popup */}
-      <CredentialsPopup 
-        open={isCredentialsModalOpen} 
-        onClose={() => setIsCredentialsModalOpen(false)} 
-      />
-    </div>
-  );
-};
-
-export default Dashboard;
