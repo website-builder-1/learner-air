@@ -26,7 +26,7 @@ const Footer = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 gap-8">
             <div>
               <h3 className="font-display font-medium mb-4">Platform</h3>
               <ul className="space-y-2">
@@ -41,14 +41,6 @@ const Footer = () => {
                 <li><Link to="/" className="text-gray-500 hover:text-learner-500 transition-colors">User Management</Link></li>
                 <li><Link to="/" className="text-gray-500 hover:text-learner-500 transition-colors">Rewards System</Link></li>
                 <li><Link to="/" className="text-gray-500 hover:text-learner-500 transition-colors">Announcements</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-display font-medium mb-4">Support</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-gray-500 hover:text-learner-500 transition-colors">Help Center</a></li>
-                <li><a href="#" className="text-gray-500 hover:text-learner-500 transition-colors">Contact</a></li>
               </ul>
             </div>
           </div>

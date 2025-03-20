@@ -26,14 +26,6 @@ const Login = () => {
         </div>
 
         <LoginForm />
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <div className="mb-1">Default headteacher credentials:</div>
-          <div className="p-2 bg-gray-50 rounded-md inline-block text-left">
-            <div><span className="font-medium">Username:</span> Learnerair</div>
-            <div><span className="font-medium">Password:</span> LEARNERAIR</div>
-          </div>
-        </div>
       </div>
     </div>
   );

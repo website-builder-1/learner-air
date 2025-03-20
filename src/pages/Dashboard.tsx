@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
@@ -17,39 +17,72 @@ import {
   BookOpen, 
   UserPlus,
   CheckCircle,
-  XCircle
+  XCircle,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useStaggeredEntrance } from '@/utils/animations';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// Sample data for demonstration purposes
-const SAMPLE_ACTIVITIES = [
+// Sample homeworks
+const SAMPLE_HOMEWORKS = [
   {
     id: '1',
-    type: 'reward',
-    description: 'Outstanding contribution in science class',
-    date: '2023-09-15',
-    teacher: 'Mr. Smith',
-    points: 5
+    title: 'Math - Algebra Problems',
+    description: 'Sets 4-6 on page 128',
+    dueDate: new Date(Date.now() + 86400000), // Tomorrow
+    subject: 'Math',
+    class: '10A'
   },
   {
     id: '2',
-    type: 'sanction',
-    description: 'Late submission of homework',
-    date: '2023-09-10',
-    teacher: 'Ms. Johnson',
-    points: 2
+    title: 'English - Essay',
+    description: 'Comparison of themes',
+    dueDate: new Date(Date.now() + 259200000), // 3 days
+    subject: 'English',
+    class: '10B'
   },
   {
     id: '3',
-    type: 'reward',
-    description: 'Helping a classmate with math problems',
-    date: '2023-09-05',
-    teacher: 'Mr. Williams',
-    points: 3
+    title: 'Science - Lab Report',
+    description: 'Write up of chemistry experiment',
+    dueDate: new Date(Date.now() + 432000000), // 5 days
+    subject: 'Science',
+    class: '10A'
   }
 ];
 
+// Get initial homeworks from localStorage or use sample data
+const getHomeworks = () => {
+  const stored = localStorage.getItem('homeworks');
+  if (stored) {
+    return JSON.parse(stored);
+  }
+  localStorage.setItem('homeworks', JSON.stringify(SAMPLE_HOMEWORKS));
+  return SAMPLE_HOMEWORKS;
+};
+
+// Sample announcements data
 const SAMPLE_ANNOUNCEMENTS = [
   {
     id: '1',
@@ -67,33 +100,65 @@ const SAMPLE_ANNOUNCEMENTS = [
   }
 ];
 
-const SAMPLE_HOMEWORKS = [
-  {
-    id: '1',
-    title: 'Math - Algebra Problems',
-    description: 'Sets 4-6 on page 128',
-    dueDate: new Date(Date.now() + 86400000), // Tomorrow
-    subject: 'Math'
-  },
-  {
-    id: '2',
-    title: 'English - Essay',
-    description: 'Comparison of themes',
-    dueDate: new Date(Date.now() + 259200000), // 3 days
-    subject: 'English'
-  },
-  {
-    id: '3',
-    title: 'Science - Lab Report',
-    description: 'Write up of chemistry experiment',
-    dueDate: new Date(Date.now() + 432000000), // 5 days
-    subject: 'Science'
+// Get activities from localStorage or initialize
+const getActivities = () => {
+  const stored = localStorage.getItem('student_activities');
+  if (stored) {
+    return JSON.parse(stored);
   }
-];
+  
+  // Sample data
+  const sampleActivities = [
+    {
+      id: '1',
+      type: 'reward',
+      description: 'Outstanding contribution in science class',
+      points: 5,
+      teacherId: '2',
+      teacherName: 'John Smith',
+      date: '2023-09-15'
+    },
+    {
+      id: '2',
+      type: 'sanction',
+      description: 'Late submission of homework',
+      sanctionType: 'Lunchtime Detention',
+      teacherId: '2',
+      teacherName: 'John Smith',
+      date: '2023-09-10'
+    },
+    {
+      id: '3',
+      type: 'reward',
+      description: 'Helping a classmate with math problems',
+      points: 3,
+      teacherId: '2',
+      teacherName: 'John Smith',
+      date: '2023-09-05'
+    }
+  ];
+  
+  localStorage.setItem('student_activities', JSON.stringify(sampleActivities));
+  return sampleActivities;
+};
+
+// Save activities to localStorage
+const saveActivities = (activities) => {
+  localStorage.setItem('student_activities', JSON.stringify(activities));
+};
+
+// Save homeworks to localStorage
+const saveHomeworks = (homeworks) => {
+  localStorage.setItem('homeworks', JSON.stringify(homeworks));
+};
 
 // Activity card component for student dashboard
-const ActivityCard = ({ activity }: { activity: typeof SAMPLE_ACTIVITIES[0] }) => {
+const ActivityCard = ({ activity, onDelete }) => {
   const isReward = activity.type === 'reward';
+  const { user } = useAuth();
+  const canDelete = (isReward && user?.permissions.includes('set_rewards')) || 
+                   (!isReward && user?.permissions.includes('set_sanctions')) ||
+                   user?.role === 'headteacher';
   
   return (
     <Card className={`border-l-4 ${isReward ? 'border-l-green-500' : 'border-l-amber-500'}`}>
@@ -106,19 +171,31 @@ const ActivityCard = ({ activity }: { activity: typeof SAMPLE_ACTIVITIES[0] }) =
                 <AlertTriangle className="text-amber-500" size={18} />
               }
               <span className={`text-sm font-medium ${isReward ? 'text-green-600' : 'text-amber-600'}`}>
-                {isReward ? 'Reward' : 'Sanction'} • {activity.points} points
+                {isReward ? `Reward • ${activity.points} points` : `Sanction • ${activity.sanctionType || 'General'}`}
               </span>
             </div>
             <p className="font-medium mb-1">{activity.description}</p>
             <div className="text-sm text-gray-500">
-              Issued by {activity.teacher}
+              Issued by {activity.teacherName}
             </div>
           </div>
-          <div className="text-sm text-gray-400">
-            {new Date(activity.date).toLocaleDateString('en-GB', {
-              day: 'numeric',
-              month: 'short'
-            })}
+          <div className="flex gap-2 items-center">
+            <div className="text-sm text-gray-400">
+              {new Date(activity.date).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short'
+              })}
+            </div>
+            {canDelete && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                onClick={() => onDelete(activity)}
+              >
+                <Trash2 size={16} />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -160,7 +237,7 @@ const AnnouncementCard = ({ announcement }: { announcement: typeof SAMPLE_ANNOUN
 };
 
 // Homework card component
-const HomeworkCard = ({ homework }: { homework: typeof SAMPLE_HOMEWORKS[0] }) => {
+const HomeworkCard = ({ homework, onView }: { homework: any, onView?: (homework: any) => void }) => {
   const today = new Date();
   const dueDate = new Date(homework.dueDate);
   const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
@@ -168,7 +245,10 @@ const HomeworkCard = ({ homework }: { homework: typeof SAMPLE_HOMEWORKS[0] }) =>
   let dueDateText = `${daysDiff} days`;
   let dueDateClass = "text-gray-500";
   
-  if (daysDiff <= 1) {
+  if (daysDiff <= 0) {
+    dueDateText = "Today";
+    dueDateClass = "text-red-600 font-medium";
+  } else if (daysDiff === 1) {
     dueDateText = "Tomorrow";
     dueDateClass = "text-amber-600";
   } else if (daysDiff <= 2) {
@@ -181,8 +261,16 @@ const HomeworkCard = ({ homework }: { homework: typeof SAMPLE_HOMEWORKS[0] }) =>
         <div>
           <div className="font-medium">{homework.title}</div>
           <div className="text-sm text-gray-500">{homework.description}</div>
+          {homework.class && (
+            <div className="text-xs text-gray-400 mt-1">Class: {homework.class}</div>
+          )}
         </div>
-        <div className={`text-sm ${dueDateClass}`}>{dueDateText}</div>
+        <div className="flex flex-col items-end gap-2">
+          <div className={`text-sm ${dueDateClass}`}>{dueDateText}</div>
+          {onView && (
+            <Button variant="outline" size="sm" onClick={() => onView(homework)}>View</Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -193,15 +281,31 @@ const QuickAction = ({
   icon: Icon, 
   label, 
   to, 
-  color = 'text-gray-500'
+  color = 'text-gray-500',
+  onClick
 }: { 
   icon: React.ElementType; 
   label: string; 
-  to: string; 
+  to?: string; 
   color?: string;
+  onClick?: () => void;
 }) => {
+  if (onClick) {
+    return (
+      <button 
+        onClick={onClick} 
+        className="flex flex-col items-center gap-2 transition-transform hover:scale-105"
+      >
+        <div className={`w-12 h-12 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center ${color}`}>
+          <Icon size={20} />
+        </div>
+        <span className="text-sm text-gray-600">{label}</span>
+      </button>
+    );
+  }
+  
   return (
-    <Link to={to} className="flex flex-col items-center gap-2 transition-transform hover:scale-105">
+    <Link to={to || "#"} className="flex flex-col items-center gap-2 transition-transform hover:scale-105">
       <div className={`w-12 h-12 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center ${color}`}>
         <Icon size={20} />
       </div>
@@ -212,7 +316,248 @@ const QuickAction = ({
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const getStaggeredStyle = useStaggeredEntrance(5);
+  const [activities, setActivities] = useState([]);
+  const [homeworks, setHomeworks] = useState([]);
+  const [usersStats, setUsersStats] = useState({
+    students: 0,
+    teachers: 0,
+    rewards: 0,
+    sanctions: 0
+  });
+
+  // Modal states
+  const [isHomeworkModalOpen, setIsHomeworkModalOpen] = useState(false);
+  const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
+  const [isSanctionModalOpen, setIsSanctionModalOpen] = useState(false);
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+  
+  // Form data
+  const [homeworkForm, setHomeworkForm] = useState({
+    title: '',
+    description: '',
+    subject: '',
+    class: '',
+    dueDate: ''
+  });
+
+  const [rewardForm, setRewardForm] = useState({
+    description: '',
+    points: 1,
+    studentId: ''
+  });
+
+  const [sanctionForm, setSanctionForm] = useState({
+    description: '',
+    sanctionType: 'Lunchtime Detention',
+    studentId: ''
+  });
+
+  // Load data on component mount
+  useEffect(() => {
+    // Load activities
+    const allActivities = getActivities();
+    if (user?.role === 'student') {
+      // Filter activities for the current student
+      const studentActivities = allActivities.filter(activity => activity.id === user.id);
+      setActivities(studentActivities);
+    } else {
+      // For teachers and headteachers, show all activities
+      setActivities(allActivities);
+    }
+
+    // Load homeworks
+    const allHomeworks = getHomeworks();
+    setHomeworks(allHomeworks);
+
+    // Calculate stats
+    calculateStats();
+  }, [user]);
+
+  // Calculate school-wide statistics
+  const calculateStats = () => {
+    // Get all users from localStorage
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const allActivities = getActivities();
+    
+    // Count students and teachers
+    const students = users.filter(u => u.role === 'student').length;
+    const teachers = users.filter(u => u.role === 'teacher' || u.role === 'headteacher').length;
+    
+    // Count rewards and sanctions
+    const rewards = allActivities.filter(a => a.type === 'reward').length;
+    const sanctions = allActivities.filter(a => a.type === 'sanction').length;
+    
+    setUsersStats({
+      students,
+      teachers,
+      rewards,
+      sanctions
+    });
+  };
+
+  // Handle homework form change
+  const handleHomeworkFormChange = (field, value) => {
+    setHomeworkForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handle reward form change
+  const handleRewardFormChange = (field, value) => {
+    setRewardForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handle sanction form change
+  const handleSanctionFormChange = (field, value) => {
+    setSanctionForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Create a new homework
+  const handleCreateHomework = () => {
+    if (!homeworkForm.title || !homeworkForm.description || !homeworkForm.dueDate) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const newHomework = {
+      id: Date.now().toString(),
+      title: homeworkForm.title,
+      description: homeworkForm.description,
+      subject: homeworkForm.subject,
+      class: homeworkForm.class,
+      dueDate: new Date(homeworkForm.dueDate).toISOString()
+    };
+
+    const updatedHomeworks = [newHomework, ...homeworks];
+    saveHomeworks(updatedHomeworks);
+    setHomeworks(updatedHomeworks);
+    
+    setIsHomeworkModalOpen(false);
+    setHomeworkForm({
+      title: '',
+      description: '',
+      subject: '',
+      class: '',
+      dueDate: ''
+    });
+    
+    toast.success('Homework created successfully');
+  };
+
+  // Create a new reward
+  const handleCreateReward = () => {
+    if (!rewardForm.description || !rewardForm.studentId) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const newReward = {
+      id: rewardForm.studentId,
+      type: 'reward',
+      description: rewardForm.description,
+      points: rewardForm.points,
+      teacherId: user?.id,
+      teacherName: user?.fullName,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    const allActivities = getActivities();
+    const updatedActivities = [newReward, ...allActivities];
+    saveActivities(updatedActivities);
+    
+    if (user?.role === 'student') {
+      // Update the activities shown to the student
+      const studentActivities = updatedActivities.filter(activity => activity.id === user.id);
+      setActivities(studentActivities);
+    } else {
+      setActivities(updatedActivities);
+    }
+    
+    setIsRewardModalOpen(false);
+    setRewardForm({
+      description: '',
+      points: 1,
+      studentId: ''
+    });
+    
+    // Update statistics
+    calculateStats();
+    
+    toast.success('Reward added successfully');
+  };
+
+  // Create a new sanction
+  const handleCreateSanction = () => {
+    if (!sanctionForm.description || !sanctionForm.studentId) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const newSanction = {
+      id: sanctionForm.studentId,
+      type: 'sanction',
+      description: sanctionForm.description,
+      sanctionType: sanctionForm.sanctionType,
+      teacherId: user?.id,
+      teacherName: user?.fullName,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    const allActivities = getActivities();
+    const updatedActivities = [newSanction, ...allActivities];
+    saveActivities(updatedActivities);
+    
+    if (user?.role === 'student') {
+      // Update the activities shown to the student
+      const studentActivities = updatedActivities.filter(activity => activity.id === user.id);
+      setActivities(studentActivities);
+    } else {
+      setActivities(updatedActivities);
+    }
+    
+    setIsSanctionModalOpen(false);
+    setSanctionForm({
+      description: '',
+      sanctionType: 'Lunchtime Detention',
+      studentId: ''
+    });
+    
+    // Update statistics
+    calculateStats();
+    
+    toast.success('Sanction added successfully');
+  };
+
+  // Delete an activity (reward or sanction)
+  const handleDeleteActivity = (activity) => {
+    const allActivities = getActivities();
+    const updatedActivities = allActivities.filter(a => 
+      !(a.id === activity.id && 
+        a.date === activity.date && 
+        a.description === activity.description)
+    );
+    
+    saveActivities(updatedActivities);
+    
+    if (user?.role === 'student') {
+      // Update the activities shown to the student
+      const studentActivities = updatedActivities.filter(a => a.id === user.id);
+      setActivities(studentActivities);
+    } else {
+      setActivities(updatedActivities);
+    }
+    
+    // Update statistics
+    calculateStats();
+    
+    toast.success(`${activity.type === 'reward' ? 'Reward' : 'Sanction'} deleted successfully`);
+  };
+
+  // Get all students for the select dropdowns
+  const getStudents = () => {
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    return users.filter(u => u.role === 'student');
+  };
 
   if (!user) return null;
 
@@ -239,19 +584,51 @@ const Dashboard = () => {
               <>
                 <QuickAction icon={UserPlus} label="Add User" to="/users" color="text-learner-500" />
                 <QuickAction icon={Users} label="Manage Users" to="/users" />
-                <QuickAction icon={BookOpen} label="Homework" to="/dashboard" />
-                <QuickAction icon={Award} label="Rewards" to="/dashboard" />
-                <QuickAction icon={AlertTriangle} label="Sanctions" to="/dashboard" />
+                <QuickAction 
+                  icon={BookOpen} 
+                  label="Homework" 
+                  color="text-blue-500"
+                  onClick={() => setIsHomeworkModalOpen(true)} 
+                />
+                <QuickAction 
+                  icon={Award} 
+                  label="Rewards" 
+                  color="text-green-500"
+                  onClick={() => setIsRewardModalOpen(true)} 
+                />
+                <QuickAction 
+                  icon={AlertTriangle} 
+                  label="Sanctions" 
+                  color="text-amber-500"
+                  onClick={() => setIsSanctionModalOpen(true)} 
+                />
                 <QuickAction icon={Bell} label="Announcements" to="/announcements" />
               </>
             )}
             {user.role === 'teacher' && (
               <>
                 <QuickAction icon={Users} label="Students" to="/student-search" color="text-learner-500" />
-                <QuickAction icon={BookOpen} label="Homework" to="/dashboard" />
+                <QuickAction 
+                  icon={BookOpen} 
+                  label="Homework" 
+                  color="text-blue-500"
+                  onClick={() => setIsHomeworkModalOpen(true)} 
+                />
                 <QuickAction icon={Bell} label="Announcements" to="/announcements" />
-                <QuickAction icon={Award} label="Rewards" to="/dashboard" />
-                <QuickAction icon={AlertTriangle} label="Sanctions" to="/dashboard" />
+                <QuickAction 
+                  icon={Award} 
+                  label="Rewards" 
+                  color="text-green-500"
+                  onClick={() => setIsRewardModalOpen(true)}
+                  disabled={!user.permissions.includes('set_rewards')}
+                />
+                <QuickAction 
+                  icon={AlertTriangle} 
+                  label="Sanctions" 
+                  color="text-amber-500"
+                  onClick={() => setIsSanctionModalOpen(true)}
+                  disabled={!user.permissions.includes('set_sanctions')} 
+                />
                 {user.permissions.includes('add_users') && (
                   <QuickAction icon={UserPlus} label="Manage Users" to="/users" />
                 )}
@@ -260,7 +637,7 @@ const Dashboard = () => {
             {user.role === 'student' && (
               <>
                 <QuickAction icon={Bell} label="Announcements" to="/announcements" color="text-learner-500" />
-                <QuickAction icon={BookOpen} label="Homework" to="/dashboard" />
+                <QuickAction icon={BookOpen} label="Homework" color="text-blue-500" />
               </>
             )}
           </div>
@@ -278,9 +655,16 @@ const Dashboard = () => {
                   <CardDescription>Your upcoming assignments</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {SAMPLE_HOMEWORKS.map(homework => (
-                    <HomeworkCard key={homework.id} homework={homework} />
-                  ))}
+                  {homeworks.length === 0 ? (
+                    <div className="text-center py-8">
+                      <BookOpen className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+                      <p className="text-gray-500">No homework assignments due</p>
+                    </div>
+                  ) : (
+                    homeworks.map(homework => (
+                      <HomeworkCard key={homework.id} homework={homework} />
+                    ))
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -299,8 +683,8 @@ const Dashboard = () => {
                         <CardTitle className="text-base">Assigned</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-medium">12</div>
-                        <div className="text-sm text-gray-500">Last 30 days</div>
+                        <div className="text-2xl font-medium">{homeworks.length}</div>
+                        <div className="text-sm text-gray-500">Total assignments</div>
                       </CardContent>
                     </Card>
                     <Card>
@@ -317,20 +701,23 @@ const Dashboard = () => {
                   <div className="mt-4">
                     <h3 className="font-medium mb-3">Recent Assignments</h3>
                     <div className="space-y-3">
-                      {SAMPLE_HOMEWORKS.map(homework => (
+                      {homeworks.slice(0, 3).map(homework => (
                         <div key={homework.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                           <div>
                             <div className="font-medium">{homework.title}</div>
-                            <div className="text-sm text-gray-500">Class 10A</div>
+                            <div className="text-sm text-gray-500">{homework.class || 'All Classes'}</div>
                           </div>
-                          <Button variant="outline" size="sm">View</Button>
+                          <Button variant="outline" size="sm" onClick={() => navigate(`/homework/${homework.id}`)}>View</Button>
                         </div>
                       ))}
                     </div>
                   </div>
                   
                   <div className="text-center mt-4">
-                    <Button className="bg-learner-500 hover:bg-learner-600">
+                    <Button 
+                      className="bg-learner-500 hover:bg-learner-600"
+                      onClick={() => setIsHomeworkModalOpen(true)}
+                    >
                       Create New Assignment
                     </Button>
                   </div>
@@ -355,8 +742,8 @@ const Dashboard = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-medium">24</div>
-                        <div className="text-sm text-gray-500">Last 30 days</div>
+                        <div className="text-2xl font-medium">{activities.filter(a => a.type === 'reward').length}</div>
+                        <div className="text-sm text-gray-500">Total</div>
                       </CardContent>
                     </Card>
                     <Card>
@@ -367,18 +754,26 @@ const Dashboard = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-medium">8</div>
-                        <div className="text-sm text-gray-500">Last 30 days</div>
+                        <div className="text-2xl font-medium">{activities.filter(a => a.type === 'sanction').length}</div>
+                        <div className="text-sm text-gray-500">Total</div>
                       </CardContent>
                     </Card>
                   </div>
                   
                   <div className="flex gap-4 mt-6">
-                    <Button className="flex-1 bg-green-500 hover:bg-green-600">
+                    <Button 
+                      className="flex-1 bg-green-500 hover:bg-green-600"
+                      onClick={() => setIsRewardModalOpen(true)}
+                      disabled={!user.permissions.includes('set_rewards')}
+                    >
                       <Award className="mr-2" size={16} />
                       Issue Reward
                     </Button>
-                    <Button className="flex-1 bg-amber-500 hover:bg-amber-600">
+                    <Button 
+                      className="flex-1 bg-amber-500 hover:bg-amber-600"
+                      onClick={() => setIsSanctionModalOpen(true)}
+                      disabled={!user.permissions.includes('set_sanctions')}
+                    >
                       <AlertTriangle className="mr-2" size={16} />
                       Issue Sanction
                     </Button>
@@ -400,21 +795,21 @@ const Dashboard = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-500 mb-1">Students</div>
-                      <div className="text-2xl font-medium">1,248</div>
+                      <div className="text-2xl font-medium">{usersStats.students}</div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-500 mb-1">
                         Teachers
                       </div>
-                      <div className="text-2xl font-medium">64</div>
+                      <div className="text-2xl font-medium">{usersStats.teachers}</div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-500 mb-1">Rewards</div>
-                      <div className="text-2xl font-medium">284</div>
+                      <div className="text-2xl font-medium">{usersStats.rewards}</div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <div className="text-sm text-gray-500 mb-1">Sanctions</div>
-                      <div className="text-2xl font-medium">45</div>
+                      <div className="text-2xl font-medium">{usersStats.sanctions}</div>
                     </div>
                   </div>
 
@@ -487,19 +882,27 @@ const Dashboard = () => {
               </Card>
             )}
             
-            {/* Student activities (rewards for students) */}
+            {/* Student activities (rewards and sanctions for students) */}
             {user.role === 'student' && (
               <Card style={getStaggeredStyle(4)}>
                 <CardHeader className="pb-2">
                   <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your recent rewards</CardDescription>
+                  <CardDescription>Your recent rewards and sanctions</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {SAMPLE_ACTIVITIES
-                    .filter(activity => activity.type === 'reward')
-                    .map(activity => (
-                      <ActivityCard key={activity.id} activity={activity} />
-                    ))}
+                  {activities.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500">No activities yet</p>
+                    </div>
+                  ) : (
+                    activities.map((activity, index) => (
+                      <ActivityCard 
+                        key={`${activity.id}-${index}`} 
+                        activity={activity} 
+                        onDelete={handleDeleteActivity}
+                      />
+                    ))
+                  )}
                   
                   <div className="text-center pt-2">
                     <Button variant="ghost" className="text-learner-500 hover:text-learner-600 hover:bg-learner-50">
@@ -512,6 +915,248 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Create Homework Modal */}
+      <Dialog open={isHomeworkModalOpen} onOpenChange={setIsHomeworkModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create New Homework</DialogTitle>
+            <DialogDescription>
+              Assign homework to students
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={homeworkForm.title}
+                onChange={(e) => handleHomeworkFormChange('title', e.target.value)}
+                placeholder="Homework title"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={homeworkForm.description}
+                onChange={(e) => handleHomeworkFormChange('description', e.target.value)}
+                placeholder="Detailed instructions for the homework"
+                className="min-h-[100px]"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Input
+                  id="subject"
+                  value={homeworkForm.subject}
+                  onChange={(e) => handleHomeworkFormChange('subject', e.target.value)}
+                  placeholder="e.g. Math, English"
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="class">Class</Label>
+                <Input
+                  id="class"
+                  value={homeworkForm.class}
+                  onChange={(e) => handleHomeworkFormChange('class', e.target.value)}
+                  placeholder="e.g. 10A, 11B"
+                />
+              </div>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={homeworkForm.dueDate}
+                onChange={(e) => handleHomeworkFormChange('dueDate', e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsHomeworkModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateHomework}>
+              Create Homework
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Reward Modal */}
+      <Dialog open={isRewardModalOpen} onOpenChange={setIsRewardModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Issue Reward</DialogTitle>
+            <DialogDescription>
+              Recognize positive behavior and achievements
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="studentId">Student</Label>
+              <Select 
+                value={rewardForm.studentId} 
+                onValueChange={(value) => handleRewardFormChange('studentId', value)}
+              >
+                <SelectTrigger id="studentId">
+                  <SelectValue placeholder="Select student" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Students</SelectLabel>
+                    {getStudents().map(student => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.fullName} ({student.yearGroup || 'No Year'}, {student.class || 'No Class'})
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={rewardForm.description}
+                onChange={(e) => handleRewardFormChange('description', e.target.value)}
+                placeholder="Describe the positive behavior or achievement"
+                className="min-h-[100px]"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="points">Points</Label>
+              <Select 
+                value={rewardForm.points.toString()} 
+                onValueChange={(value) => handleRewardFormChange('points', parseInt(value))}
+              >
+                <SelectTrigger id="points">
+                  <SelectValue placeholder="Select points" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Point Values</SelectLabel>
+                    <SelectItem value="1">1 Point</SelectItem>
+                    <SelectItem value="2">2 Points</SelectItem>
+                    <SelectItem value="3">3 Points</SelectItem>
+                    <SelectItem value="5">5 Points</SelectItem>
+                    <SelectItem value="10">10 Points</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRewardModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateReward}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              <CheckCircle className="mr-2 h-4 w-4" /> Add Reward
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Create Sanction Modal */}
+      <Dialog open={isSanctionModalOpen} onOpenChange={setIsSanctionModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Issue Sanction</DialogTitle>
+            <DialogDescription>
+              Document behavior that needs improvement
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="studentId">Student</Label>
+              <Select 
+                value={sanctionForm.studentId} 
+                onValueChange={(value) => handleSanctionFormChange('studentId', value)}
+              >
+                <SelectTrigger id="studentId">
+                  <SelectValue placeholder="Select student" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Students</SelectLabel>
+                    {getStudents().map(student => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.fullName} ({student.yearGroup || 'No Year'}, {student.class || 'No Class'})
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="sanctionDescription">Description</Label>
+              <Textarea
+                id="sanctionDescription"
+                value={sanctionForm.description}
+                onChange={(e) => handleSanctionFormChange('description', e.target.value)}
+                placeholder="Describe the behavior requiring improvement"
+                className="min-h-[100px]"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="sanctionType">Sanction Type</Label>
+              <Select 
+                value={sanctionForm.sanctionType} 
+                onValueChange={(value) => handleSanctionFormChange('sanctionType', value)}
+              >
+                <SelectTrigger id="sanctionType">
+                  <SelectValue placeholder="Select sanction type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Sanction Types</SelectLabel>
+                    <SelectItem value="Lunchtime Detention">Lunchtime Detention</SelectItem>
+                    <SelectItem value="After School Detention">After School Detention</SelectItem>
+                    <SelectItem value="Wednesday Detention">Wednesday Detention</SelectItem>
+                    <SelectItem value="Internal Inclusion">Internal Inclusion</SelectItem>
+                    <SelectItem value="Inclusion">Inclusion</SelectItem>
+                    <SelectItem value="Parent Meeting">Parent Meeting</SelectItem>
+                    <SelectItem value="Verbal Warning">Verbal Warning</SelectItem>
+                    <SelectItem value="Written Warning">Written Warning</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSanctionModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateSanction}
+              className="bg-amber-500 hover:bg-amber-600"
+            >
+              <XCircle className="mr-2 h-4 w-4" /> Add Sanction
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

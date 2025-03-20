@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut } from 'lucide-react';
+import { Menu, X, User, LogOut, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -12,11 +12,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogClose
+} from "@/components/ui/dialog";
 
 export const Header = () => {
   const { user, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false);
   const location = useLocation();
 
   // Navigation links vary based on authentication status
@@ -46,6 +55,23 @@ export const Header = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Get user credentials (username/password)
+  const getUserCredentials = () => {
+    if (!user) return null;
+    
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const foundUser = users.find(u => u.id === user.id);
+    
+    if (foundUser) {
+      return {
+        username: foundUser.username,
+        password: foundUser.password
+      };
+    }
+    
+    return null;
+  };
 
   return (
     <header 
@@ -97,6 +123,13 @@ export const Header = () => {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="flex items-center gap-2 cursor-pointer" 
+                  onClick={() => setCredentialsDialogOpen(true)}
+                >
+                  <KeyRound size={16} />
+                  <span>View Login Details</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onClick={logout}>
                   <LogOut size={16} />
                   <span>Logout</span>
@@ -141,15 +174,74 @@ export const Header = () => {
                 <div className="h-px bg-gray-200 my-2"></div>
                 <Button 
                   variant="ghost" 
+                  className="justify-start px-4 py-3 h-auto font-medium items-center gap-2 text-gray-600"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setCredentialsDialogOpen(true);
+                  }}
+                >
+                  <KeyRound size={16} />
+                  View Login Details
+                </Button>
+                <Button 
+                  variant="ghost" 
                   className="justify-start px-4 py-3 h-auto font-medium text-red-600"
                   onClick={logout}
                 >
+                  <LogOut className="mr-2" size={16} />
                   Logout
                 </Button>
               </>
             )}
           </nav>
         </div>
+      )}
+
+      {/* User Credentials Dialog */}
+      {user && (
+        <Dialog open={credentialsDialogOpen} onOpenChange={setCredentialsDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Your Login Details</DialogTitle>
+              <DialogDescription>
+                Please keep this information secure.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4">
+              {(() => {
+                const credentials = getUserCredentials();
+                if (!credentials) {
+                  return <div className="text-amber-600">Unable to retrieve credentials.</div>;
+                }
+                
+                return (
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <div className="text-sm text-gray-500 mb-1">Username</div>
+                      <div className="font-medium">{credentials.username}</div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <div className="text-sm text-gray-500 mb-1">Password</div>
+                      <div className="font-medium">{credentials.password}</div>
+                    </div>
+                    
+                    <div className="text-sm text-gray-500 mt-2">
+                      For security reasons, please do not share your password with anyone.
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            <div className="flex justify-end">
+              <DialogClose asChild>
+                <Button>Close</Button>
+              </DialogClose>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </header>
   );
