@@ -71,19 +71,29 @@ const ActivityPage = () => {
   useEffect(() => {
     if (!user) return;
     
+    // Load users first
+    const loadUsers = () => {
+      const stored = localStorage.getItem('users');
+      if (stored) {
+        const allUsers = JSON.parse(stored);
+        setUsers(allUsers);
+        return allUsers;
+      }
+      return [];
+    };
+    
     // Load activities
-    const loadActivities = () => {
+    const loadActivities = (usersList) => {
       const stored = localStorage.getItem('student_activities');
       if (stored) {
-        const allActivities = JSON.parse(stored);
+        const allActivities = JSON.parse(stored) || [];
         
         // Enhance activities with student info
         const enhancedActivities = allActivities.map((activity: Activity) => {
-          const student = users.find(u => u.id === activity.id);
+          const student = usersList.find(u => u.id === activity.studentId);
           if (student) {
             return {
               ...activity,
-              studentId: student.id,
               studentName: student.fullName,
               yearGroup: student.yearGroup,
               class: student.class
@@ -94,22 +104,12 @@ const ActivityPage = () => {
         
         setActivities(enhancedActivities);
         setFilteredActivities(enhancedActivities);
+        calculateStats(enhancedActivities);
       }
     };
     
-    // Load users
-    const loadUsers = () => {
-      const stored = localStorage.getItem('users');
-      if (stored) {
-        const allUsers = JSON.parse(stored);
-        setUsers(allUsers);
-        
-        // After loading users, load activities
-        loadActivities();
-      }
-    };
-    
-    loadUsers();
+    const usersList = loadUsers();
+    loadActivities(usersList);
     setLoading(false);
   }, [user]);
 
@@ -127,7 +127,7 @@ const ActivityPage = () => {
     // Filter by date
     if (filterDate) {
       const dateStr = format(filterDate, 'yyyy-MM-dd');
-      filtered = filtered.filter(activity => activity.date === dateStr);
+      filtered = filtered.filter(activity => activity.date.includes(dateStr));
     }
     
     // Filter by year group
@@ -250,14 +250,16 @@ const ActivityPage = () => {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Activity Type</label>
-                <Select value={filterType} onValueChange={(value: 'all' | 'reward' | 'sanction') => setFilterType(value)}>
+                <Select value={filterType} onValueChange={(value) => setFilterType(value as 'all' | 'reward' | 'sanction')}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Activities</SelectItem>
-                    <SelectItem value="reward">Rewards Only</SelectItem>
-                    <SelectItem value="sanction">Sanctions Only</SelectItem>
+                    <SelectGroup>
+                      <SelectItem value="all">All Activities</SelectItem>
+                      <SelectItem value="reward">Rewards Only</SelectItem>
+                      <SelectItem value="sanction">Sanctions Only</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
@@ -289,10 +291,12 @@ const ActivityPage = () => {
                     <SelectValue placeholder="Select year group" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Year Groups</SelectItem>
-                    {getYearGroups().map(year => (
-                      <SelectItem key={year} value={year}>Year {year}</SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectItem value="">All Year Groups</SelectItem>
+                      {getYearGroups().map(year => (
+                        <SelectItem key={year} value={year}>Year {year}</SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
@@ -304,10 +308,12 @@ const ActivityPage = () => {
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Classes</SelectItem>
-                    {getClasses().map(cls => (
-                      <SelectItem key={cls} value={cls}>Class {cls}</SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectItem value="">All Classes</SelectItem>
+                      {getClasses().map(cls => (
+                        <SelectItem key={cls} value={cls}>Class {cls}</SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
@@ -409,7 +415,7 @@ const ActivityPage = () => {
                               </span>
                             </div>
                             <p className="font-medium mb-1">{activity.description}</p>
-                            <div className="flex gap-6 text-sm text-gray-500">
+                            <div className="flex flex-wrap gap-6 text-sm text-gray-500">
                               <span className="flex items-center gap-1">
                                 <User size={14} />
                                 {activity.studentName || 'Unknown Student'}
