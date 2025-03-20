@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -516,7 +515,7 @@ const Dashboard = () => {
 
   // Handle file attachment for homework
   const handleFileAttachment = (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files) as File[];
     setHomeworkForm(prev => ({
       ...prev,
       attachments: [...prev.attachments, ...files]
@@ -868,7 +867,6 @@ const Dashboard = () => {
                         </div>
                       ))}
                     </div>
-                  </div>
                   
                   <div className="text-center mt-4">
                     <Button 
