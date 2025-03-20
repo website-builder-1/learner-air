@@ -18,7 +18,11 @@ import {
   UserPlus,
   CheckCircle,
   XCircle,
-  Trash2
+  Trash2,
+  Search,
+  Upload,
+  FileText,
+  Paperclip
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useStaggeredEntrance } from '@/utils/animations';
@@ -43,6 +47,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger 
+} from "@/components/ui/popover";
 
 // Sample homeworks
 const SAMPLE_HOMEWORKS = [
@@ -317,6 +326,75 @@ const QuickAction = ({
   );
 };
 
+// File attachment component for homework modal
+const FileAttachment = ({ file, onRemove }) => {
+  return (
+    <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+      <div className="flex items-center gap-2">
+        <FileText size={16} className="text-gray-500" />
+        <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+      </div>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-6 w-6 rounded-full" 
+        onClick={() => onRemove(file)}
+      >
+        <XCircle size={14} className="text-gray-500" />
+      </Button>
+    </div>
+  );
+};
+
+// Credentials popup component
+const CredentialsPopup = ({ open, onClose }) => {
+  const { user } = useAuth();
+  const [credentials, setCredentials] = useState(null);
+
+  useEffect(() => {
+    if (open && user) {
+      // Fetch user credentials from localStorage
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const userCredentials = users.find(u => u.id === user.id);
+      if (userCredentials) {
+        setCredentials(userCredentials);
+      }
+    }
+  }, [open, user]);
+
+  if (!open || !credentials) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Your Login Credentials</DialogTitle>
+          <DialogDescription>
+            Keep these details safe and confidential
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Username</label>
+            <div className="p-2 bg-gray-50 rounded border">{credentials.username}</div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Password</label>
+            <div className="p-2 bg-gray-50 rounded border">{credentials.password}</div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Role</label>
+            <div className="p-2 bg-gray-50 rounded border capitalize">{credentials.role}</div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -335,6 +413,7 @@ const Dashboard = () => {
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const [isSanctionModalOpen, setIsSanctionModalOpen] = useState(false);
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+  const [isStudentSearchOpen, setIsStudentSearchOpen] = useState(false);
   
   // Form data
   const [homeworkForm, setHomeworkForm] = useState({
@@ -342,21 +421,28 @@ const Dashboard = () => {
     description: '',
     subject: '',
     class: '',
-    dueDate: ''
+    dueDate: '',
+    attachments: [] as File[]
   });
 
   const [rewardForm, setRewardForm] = useState({
     description: '',
     points: 1,
-    studentId: ''
+    studentId: '',
+    quantity: 1
   });
 
   const [sanctionForm, setSanctionForm] = useState({
     description: '',
     sanctionType: 'Lunchtime Detention',
-    studentId: ''
+    studentId: '',
+    studentSearch: ''
   });
 
+  // Student search state
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  
   // Load data on component mount
   useEffect(() => {
     // Load activities
@@ -377,6 +463,19 @@ const Dashboard = () => {
     // Calculate stats
     calculateStats();
   }, [user]);
+
+  // Load students for search
+  useEffect(() => {
+    if (isSanctionModalOpen && sanctionForm.studentSearch) {
+      const students = getStudents();
+      const filtered = students.filter(student => 
+        student.fullName.toLowerCase().includes(sanctionForm.studentSearch.toLowerCase()) ||
+        (student.class && student.class.toLowerCase().includes(sanctionForm.studentSearch.toLowerCase())) ||
+        (student.yearGroup && student.yearGroup.toLowerCase().includes(sanctionForm.studentSearch.toLowerCase()))
+      );
+      setFilteredStudents(filtered);
+    }
+  }, [isSanctionModalOpen, sanctionForm.studentSearch]);
 
   // Calculate school-wide statistics
   const calculateStats = () => {
@@ -415,6 +514,23 @@ const Dashboard = () => {
     setSanctionForm(prev => ({ ...prev, [field]: value }));
   };
 
+  // Handle file attachment for homework
+  const handleFileAttachment = (e) => {
+    const files = Array.from(e.target.files);
+    setHomeworkForm(prev => ({
+      ...prev,
+      attachments: [...prev.attachments, ...files]
+    }));
+  };
+
+  // Remove file attachment
+  const removeFileAttachment = (fileToRemove) => {
+    setHomeworkForm(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter(file => file !== fileToRemove)
+    }));
+  };
+
   // Create a new homework
   const handleCreateHomework = () => {
     if (!homeworkForm.title || !homeworkForm.description || !homeworkForm.dueDate) {
@@ -422,13 +538,22 @@ const Dashboard = () => {
       return;
     }
 
+    // Convert file attachments to storable format
+    const attachments = homeworkForm.attachments.map(file => ({
+      id: Date.now() + Math.random().toString(36).substring(2, 9),
+      name: file.name,
+      type: file.type,
+      url: URL.createObjectURL(file)
+    }));
+
     const newHomework = {
       id: Date.now().toString(),
       title: homeworkForm.title,
       description: homeworkForm.description,
       subject: homeworkForm.subject,
       class: homeworkForm.class,
-      dueDate: new Date(homeworkForm.dueDate).toISOString()
+      dueDate: new Date(homeworkForm.dueDate).toISOString(),
+      attachments: attachments.length > 0 ? attachments : undefined
     };
 
     const updatedHomeworks = [newHomework, ...homeworks];
@@ -441,52 +566,60 @@ const Dashboard = () => {
       description: '',
       subject: '',
       class: '',
-      dueDate: ''
+      dueDate: '',
+      attachments: []
     });
     
     toast.success('Homework created successfully');
   };
 
-  // Create a new reward
+  // Create new rewards based on quantity
   const handleCreateReward = () => {
     if (!rewardForm.description || !rewardForm.studentId) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const newReward = {
-      id: rewardForm.studentId,
-      type: 'reward',
-      description: rewardForm.description,
-      points: rewardForm.points,
-      teacherId: user?.id,
-      teacherName: user?.fullName,
-      date: new Date().toISOString().split('T')[0]
-    };
-
     const allActivities = getActivities();
-    const updatedActivities = [newReward, ...allActivities];
-    saveActivities(updatedActivities);
+    const newActivities = [...allActivities];
+
+    // Create multiple rewards based on quantity
+    for (let i = 0; i < rewardForm.quantity; i++) {
+      const newReward = {
+        id: rewardForm.studentId,
+        type: 'reward',
+        description: rewardForm.description,
+        points: rewardForm.points,
+        teacherId: user?.id,
+        teacherName: user?.fullName,
+        date: new Date().toISOString().split('T')[0]
+      };
+      
+      newActivities.unshift(newReward);
+    }
+    
+    saveActivities(newActivities);
     
     if (user?.role === 'student') {
       // Update the activities shown to the student
-      const studentActivities = updatedActivities.filter(activity => activity.id === user.id);
+      const studentActivities = newActivities.filter(activity => activity.id === user.id);
       setActivities(studentActivities);
     } else {
-      setActivities(updatedActivities);
+      setActivities(newActivities);
     }
     
     setIsRewardModalOpen(false);
     setRewardForm({
       description: '',
       points: 1,
-      studentId: ''
+      studentId: '',
+      quantity: 1
     });
     
     // Update statistics
     calculateStats();
     
-    toast.success('Reward added successfully');
+    toast.success(`${rewardForm.quantity} reward(s) added successfully`);
   };
 
   // Create a new sanction
@@ -522,7 +655,8 @@ const Dashboard = () => {
     setSanctionForm({
       description: '',
       sanctionType: 'Lunchtime Detention',
-      studentId: ''
+      studentId: '',
+      studentSearch: ''
     });
     
     // Update statistics
@@ -560,6 +694,16 @@ const Dashboard = () => {
   const getStudents = () => {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     return users.filter(u => u.role === 'student');
+  };
+
+  // Handle selecting a student from search results
+  const handleSelectStudent = (student) => {
+    setSanctionForm(prev => ({
+      ...prev,
+      studentId: student.id,
+      studentSearch: student.fullName
+    }));
+    setFilteredStudents([]);
   };
 
   if (!user) return null;
@@ -632,15 +776,18 @@ const Dashboard = () => {
                   onClick={() => setIsSanctionModalOpen(true)}
                   disabled={!user.permissions.includes('set_sanctions')} 
                 />
-                {user.permissions.includes('add_users') && (
-                  <QuickAction icon={UserPlus} label="Manage Users" to="/users" />
-                )}
+                <QuickAction 
+                  icon={Search} 
+                  label="Activity" 
+                  color="text-purple-500"
+                  to="/activity"
+                />
               </>
             )}
             {user.role === 'student' && (
               <>
                 <QuickAction icon={Bell} label="Announcements" to="/announcements" color="text-learner-500" />
-                <QuickAction icon={BookOpen} label="Homework" color="text-blue-500" />
+                <QuickAction icon={BookOpen} label="Homework" to="/homework" color="text-blue-500" />
               </>
             )}
           </div>
@@ -654,8 +801,15 @@ const Dashboard = () => {
             {user.role === 'student' && (
               <Card style={getStaggeredStyle(2)}>
                 <CardHeader className="pb-2">
-                  <CardTitle>Homework Due</CardTitle>
-                  <CardDescription>Your upcoming assignments</CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Homework Due</CardTitle>
+                      <CardDescription>Your upcoming assignments</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/homework')}>
+                      View all
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {homeworks.length === 0 ? (
@@ -664,7 +818,7 @@ const Dashboard = () => {
                       <p className="text-gray-500">No homework assignments due</p>
                     </div>
                   ) : (
-                    homeworks.map(homework => (
+                    homeworks.slice(0, 3).map(homework => (
                       <HomeworkCard key={homework.id} homework={homework} />
                     ))
                   )}
@@ -983,6 +1137,43 @@ const Dashboard = () => {
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="attachments">Attachments</Label>
+              <div className="flex items-center gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex items-center gap-2" 
+                  onClick={() => document.getElementById('file-upload').click()}
+                >
+                  <Paperclip size={16} />
+                  <span>Attach Files</span>
+                </Button>
+                <Input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  onChange={handleFileAttachment}
+                  multiple
+                />
+                <span className="text-sm text-gray-500">
+                  {homeworkForm.attachments.length} file(s) attached
+                </span>
+              </div>
+              
+              {homeworkForm.attachments.length > 0 && (
+                <div className="mt-2 space-y-2 max-h-32 overflow-y-auto p-2 border rounded-md">
+                  {homeworkForm.attachments.map((file, index) => (
+                    <FileAttachment 
+                      key={index} 
+                      file={file} 
+                      onRemove={removeFileAttachment} 
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           
           <DialogFooter>
@@ -1040,26 +1231,50 @@ const Dashboard = () => {
               />
             </div>
             
-            <div className="grid gap-2">
-              <Label htmlFor="points">Points</Label>
-              <Select 
-                value={rewardForm.points.toString()} 
-                onValueChange={(value) => handleRewardFormChange('points', parseInt(value))}
-              >
-                <SelectTrigger id="points">
-                  <SelectValue placeholder="Select points" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Point Values</SelectLabel>
-                    <SelectItem value="1">1 Point</SelectItem>
-                    <SelectItem value="2">2 Points</SelectItem>
-                    <SelectItem value="3">3 Points</SelectItem>
-                    <SelectItem value="5">5 Points</SelectItem>
-                    <SelectItem value="10">10 Points</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="points">Points</Label>
+                <Select 
+                  value={rewardForm.points.toString()} 
+                  onValueChange={(value) => handleRewardFormChange('points', parseInt(value))}
+                >
+                  <SelectTrigger id="points">
+                    <SelectValue placeholder="Select points" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Point Values</SelectLabel>
+                      <SelectItem value="1">1 Point</SelectItem>
+                      <SelectItem value="2">2 Points</SelectItem>
+                      <SelectItem value="3">3 Points</SelectItem>
+                      <SelectItem value="5">5 Points</SelectItem>
+                      <SelectItem value="10">10 Points</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Select 
+                  value={rewardForm.quantity.toString()} 
+                  onValueChange={(value) => handleRewardFormChange('quantity', parseInt(value))}
+                >
+                  <SelectTrigger id="quantity">
+                    <SelectValue placeholder="Select quantity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Reward Quantity</SelectLabel>
+                      <SelectItem value="1">1 Reward</SelectItem>
+                      <SelectItem value="2">2 Rewards</SelectItem>
+                      <SelectItem value="3">3 Rewards</SelectItem>
+                      <SelectItem value="4">4 Rewards</SelectItem>
+                      <SelectItem value="5">5 Rewards</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           
@@ -1090,12 +1305,53 @@ const Dashboard = () => {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="studentId">Student</Label>
+              <div className="relative">
+                <Input
+                  id="studentSearch"
+                  value={sanctionForm.studentSearch}
+                  onChange={(e) => handleSanctionFormChange('studentSearch', e.target.value)}
+                  placeholder="Search for student by name, year, or class"
+                  className="pr-8"
+                />
+                <Search className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                
+                {filteredStudents.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full border rounded-md bg-white shadow-lg max-h-52 overflow-y-auto">
+                    {filteredStudents.map(student => (
+                      <div 
+                        key={student.id} 
+                        className="p-2 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleSelectStudent(student)}
+                      >
+                        <div className="font-medium">{student.fullName}</div>
+                        <div className="text-xs text-gray-500">
+                          {student.yearGroup && `Year ${student.yearGroup}`} 
+                          {student.class && `, Class ${student.class}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {!sanctionForm.studentId && (
+                <div className="text-sm text-gray-500 mt-1">
+                  Search for a student above or select from the dropdown below
+                </div>
+              )}
+              
               <Select 
                 value={sanctionForm.studentId} 
-                onValueChange={(value) => handleSanctionFormChange('studentId', value)}
+                onValueChange={(value) => {
+                  const student = getStudents().find(s => s.id === value);
+                  handleSanctionFormChange('studentId', value);
+                  if (student) {
+                    handleSanctionFormChange('studentSearch', student.fullName);
+                  }
+                }}
               >
-                <SelectTrigger id="studentId">
-                  <SelectValue placeholder="Select student" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Or select student from list" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
@@ -1160,6 +1416,12 @@ const Dashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* User credentials popup */}
+      <CredentialsPopup 
+        open={isCredentialsModalOpen} 
+        onClose={() => setIsCredentialsModalOpen(false)} 
+      />
     </div>
   );
 };

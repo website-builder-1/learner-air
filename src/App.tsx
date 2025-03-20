@@ -1,157 +1,116 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { Toaster } from "sonner";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
-
-// Pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
-import StudentProfile from "./pages/StudentProfile";
+import NotFound from "./pages/NotFound";
 import Announcements from "./pages/Announcements";
 import StudentSearch from "./pages/StudentSearch";
-import NotFound from "./pages/NotFound";
+import StudentProfile from "./pages/StudentProfile";
+import Homework from "./pages/Homework";
+import ActivityPage from "./pages/ActivityPage";
+import "./App.css";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
-
-// Protected route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+// Authenticated route wrapper
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, isLoading } = useAuth();
 
-  // Show loading state while authentication is being checked
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-lg text-gray-500">Loading...</div>
-      </div>
-    );
+    return <div className="h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
-};
-
-// Role-based route component
-const RoleRoute = ({ 
-  children, 
-  roles = [], 
-  permissions = [] 
-}: { 
-  children: React.ReactNode, 
-  roles?: string[], 
-  permissions?: string[] 
-}) => {
-  const { user } = useAuth();
-  
-  if (!user) return <Navigate to="/login" replace />;
-  
-  const hasRequiredRole = roles.length === 0 || roles.includes(user.role);
-  const hasRequiredPermission = permissions.length === 0 || 
-    permissions.some(permission => user.permissions.includes(permission as any));
-  
-  if (!hasRequiredRole || !hasRequiredPermission) {
+  // If allowedRoles is empty, allow all authenticated users
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
-  
-  return <>{children}</>;
+
+  return children;
 };
 
-const AppWithAuth = () => (
-  <BrowserRouter>
-    <AuthProvider>
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow pt-16">
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            
-            {/* Protected routes */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/users" 
-              element={
-                <ProtectedRoute>
-                  <RoleRoute 
-                    roles={['headteacher', 'teacher']} 
-                    permissions={['add_users']}
-                  >
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/users" 
+                element={
+                  <ProtectedRoute allowedRoles={['headteacher', 'teacher']}>
                     <Users />
-                  </RoleRoute>
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/student-profile/:id" 
-              element={
-                <ProtectedRoute>
-                  <StudentProfile />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/student-search" 
-              element={
-                <ProtectedRoute>
-                  <StudentSearch />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/announcements" 
-              element={
-                <ProtectedRoute>
-                  <Announcements />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </AuthProvider>
-  </BrowserRouter>
-);
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AppWithAuth />
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/announcements" 
+                element={
+                  <ProtectedRoute>
+                    <Announcements />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student-search" 
+                element={
+                  <ProtectedRoute allowedRoles={['headteacher', 'teacher']}>
+                    <StudentSearch />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/:id" 
+                element={
+                  <ProtectedRoute allowedRoles={['headteacher', 'teacher']}>
+                    <StudentProfile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/homework" 
+                element={
+                  <ProtectedRoute>
+                    <Homework />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/activity" 
+                element={
+                  <ProtectedRoute allowedRoles={['headteacher', 'teacher']}>
+                    <ActivityPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+        <Toaster position="top-right" />
+      </AuthProvider>
+    </Router>
+  );
+}
 
 export default App;

@@ -1,251 +1,184 @@
 
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, KeyRound } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import {
+import { Button } from '@/components/ui/button';
+import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogClose
-} from "@/components/ui/dialog";
+} from '@/components/ui/dropdown-menu';
+import { Menu, User, LogOut, BookOpen, Award, Key } from 'lucide-react';
+import { useMobile } from '@/hooks/use-mobile';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
-export const Header = () => {
+const Header = () => {
   const { user, logout } = useAuth();
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false);
-  const location = useLocation();
+  const navigate = useNavigate();
+  const isMobile = useMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+  const [credentials, setCredentials] = useState(null);
 
-  // Navigation links vary based on authentication status
-  const navItems = user 
-    ? [
-        { name: 'Dashboard', path: '/dashboard' },
-        ...(user.role === 'headteacher' || user.permissions.includes('add_users') ? [{ name: 'Users', path: '/users' }] : []),
-        { name: 'Announcements', path: '/announcements' },
-        ...(user.role !== 'student' ? [{ name: 'Student Search', path: '/student-search' }] : []),
-      ]
-    : [
-        { name: 'Home', path: '/' },
-        { name: 'Login', path: '/login' },
-      ];
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-  // Handle scroll events for header styling
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Close mobile menu when route changes
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  // Get user credentials (username/password)
-  const getUserCredentials = () => {
-    if (!user) return null;
-    
+  const showCredentials = () => {
+    // Fetch user credentials from localStorage
     const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = users.find(u => u.id === user.id);
+    const userCredentials = users.find(u => u.id === user.id);
     
-    if (foundUser) {
-      return {
-        username: foundUser.username,
-        password: foundUser.password
-      };
+    if (userCredentials) {
+      setCredentials(userCredentials);
+      setIsCredentialsModalOpen(true);
     }
-    
-    return null;
   };
 
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
-        isScrolled || user ? 'py-3 glass-effect' : 'py-5 bg-transparent'
-      }`}
-    >
-      <div className="container px-4 mx-auto flex justify-between items-center">
-        {/* Logo */}
-        <Link 
-          to="/" 
-          className="flex items-center gap-2"
-        >
-          <div className="w-10 h-10 rounded-lg bg-learner-500 flex items-center justify-center">
-            <span className="text-white font-display font-bold text-xl">L</span>
+    <header className="sticky top-0 border-b bg-white z-10">
+      <div className="container mx-auto px-4 flex justify-between items-center h-16">
+        {/* Logo and Name */}
+        <Link to="/" className="flex items-center gap-2">
+          <div className="bg-learner-500 text-white h-8 w-8 rounded-md flex items-center justify-center text-xl font-semibold">
+            L
           </div>
-          <span className="font-display text-xl font-medium whitespace-nowrap">
-            Learner <span className="text-learner-500">Air</span>
-          </span>
+          <div className="font-display font-medium">
+            Learner Air
+          </div>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item, index) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`px-4 py-2 rounded-lg transition-all text-sm font-medium ${
-                location.pathname === item.path
-                  ? 'text-learner-700 bg-learner-50'
-                  : 'text-gray-600 hover:text-learner-600 hover:bg-learner-50/50'
-              }`}
-            >
-              {item.name}
-            </Link>
-          ))}
-          
-          {user && (
-            <DropdownMenu>
+        {/* Navigation - Desktop */}
+        {!isMobile && (
+          <nav className="hidden md:flex items-center gap-6">
+            {user && (
+              <>
+                <Link to="/dashboard" className="text-sm hover:text-learner-600">
+                  Dashboard
+                </Link>
+                {(user.role === 'headteacher' || user.role === 'teacher') && (
+                  <Link to="/users" className="text-sm hover:text-learner-600">
+                    Users
+                  </Link>
+                )}
+                <Link to="/announcements" className="text-sm hover:text-learner-600">
+                  Announcements
+                </Link>
+                {user.role === 'student' && (
+                  <Link to="/homework" className="text-sm hover:text-learner-600">
+                    Homework
+                  </Link>
+                )}
+                {(user.role === 'headteacher' || user.role === 'teacher') && (
+                  <Link to="/student-search" className="text-sm hover:text-learner-600">
+                    Students
+                  </Link>
+                )}
+              </>
+            )}
+          </nav>
+        )}
+
+        {/* Auth Buttons/User Menu */}
+        <div className="flex items-center gap-4">
+          {user ? (
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="ml-2 gap-2 hover:bg-learner-50"
-                >
-                  <User size={18} />
-                  <span className="font-medium">{user.fullName}</span>
+                <Button variant="outline" className="gap-2" size={isMobile ? "icon" : "default"}>
+                  <User size={16} />
+                  {!isMobile && (
+                    <span className="truncate max-w-[120px]">{user.fullName}</span>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <div className="p-2 text-sm font-medium">{user.fullName}</div>
+                <div className="p-2 pt-0 text-xs text-gray-500 capitalize">{user.role}</div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="flex items-center gap-2 cursor-pointer" 
-                  onClick={() => setCredentialsDialogOpen(true)}
-                >
-                  <KeyRound size={16} />
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard" className="cursor-pointer">Dashboard</Link>
+                </DropdownMenuItem>
+                {user.role === 'student' && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/homework" className="cursor-pointer flex items-center">
+                      <BookOpen className="mr-2" size={16} />
+                      <span>My Homework</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {(user.role === 'headteacher' || user.role === 'teacher') && (
+                  <>
+                    {user.permissions.includes('set_rewards') && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/activity" className="cursor-pointer flex items-center">
+                          <Award className="mr-2" size={16} />
+                          <span>Activity Tracking</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+                <DropdownMenuItem onClick={showCredentials} className="cursor-pointer flex items-center">
+                  <Key className="mr-2" size={16} />
                   <span>View Login Details</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onClick={logout}>
-                  <LogOut size={16} />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 flex items-center">
+                  <LogOut className="mr-2" size={16} />
                   <span>Logout</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : (
+            <Button onClick={() => navigate('/login')} variant="default">
+              Sign in
+            </Button>
           )}
-        </nav>
 
-        {/* Mobile Menu Button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="md:hidden" 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </Button>
+          {/* Mobile menu button */}
+          {isMobile && (
+            <Button variant="ghost" size="icon" className="md:hidden">
+              <Menu size={20} />
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Mobile Navigation */}
-      {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[60px] bg-white/95 backdrop-blur-sm z-40">
-          <nav className="flex flex-col p-5 gap-2">
-            {navItems.map((item, i) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`px-4 py-3 rounded-lg text-base font-medium ${
-                  location.pathname === item.path
-                    ? 'text-learner-700 bg-learner-50'
-                    : 'text-gray-600'
-                } animate-slide-in-up`}
-                style={{ animationDelay: `${i * 50}ms` }}
-              >
-                {item.name}
-              </Link>
-            ))}
-            
-            {user && (
-              <>
-                <div className="h-px bg-gray-200 my-2"></div>
-                <Button 
-                  variant="ghost" 
-                  className="justify-start px-4 py-3 h-auto font-medium items-center gap-2 text-gray-600"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setCredentialsDialogOpen(true);
-                  }}
-                >
-                  <KeyRound size={16} />
-                  View Login Details
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="justify-start px-4 py-3 h-auto font-medium text-red-600"
-                  onClick={logout}
-                >
-                  <LogOut className="mr-2" size={16} />
-                  Logout
-                </Button>
-              </>
-            )}
-          </nav>
-        </div>
-      )}
-
-      {/* User Credentials Dialog */}
-      {user && (
-        <Dialog open={credentialsDialogOpen} onOpenChange={setCredentialsDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Your Login Details</DialogTitle>
-              <DialogDescription>
-                Please keep this information secure.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4">
-              {(() => {
-                const credentials = getUserCredentials();
-                if (!credentials) {
-                  return <div className="text-amber-600">Unable to retrieve credentials.</div>;
-                }
-                
-                return (
-                  <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <div className="text-sm text-gray-500 mb-1">Username</div>
-                      <div className="font-medium">{credentials.username}</div>
-                    </div>
-                    
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <div className="text-sm text-gray-500 mb-1">Password</div>
-                      <div className="font-medium">{credentials.password}</div>
-                    </div>
-                    
-                    <div className="text-sm text-gray-500 mt-2">
-                      For security reasons, please do not share your password with anyone.
-                    </div>
-                  </div>
-                );
-              })()}
+      {/* User credentials popup */}
+      <Dialog open={isCredentialsModalOpen} onOpenChange={setIsCredentialsModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Your Login Credentials</DialogTitle>
+            <DialogDescription>
+              Keep these details safe and confidential
+            </DialogDescription>
+          </DialogHeader>
+          {credentials && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Username</label>
+                <div className="p-2 bg-gray-50 rounded border">{credentials.username}</div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password</label>
+                <div className="p-2 bg-gray-50 rounded border">{credentials.password}</div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Role</label>
+                <div className="p-2 bg-gray-50 rounded border capitalize">{credentials.role}</div>
+              </div>
             </div>
-            
-            <div className="flex justify-end">
-              <DialogClose asChild>
-                <Button>Close</Button>
-              </DialogClose>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+          )}
+          <DialogFooter>
+            <Button onClick={() => setIsCredentialsModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 };
 
-// Moved this function outside of the component to avoid hook ordering issues
 export default Header;
