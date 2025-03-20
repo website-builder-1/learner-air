@@ -515,10 +515,10 @@ const Dashboard = () => {
 
   // Handle file attachment for homework
   const handleFileAttachment = (e) => {
-    const files = Array.from(e.target.files) as File[];
+    const files = Array.from(e.target.files || []) as File[];
     setHomeworkForm(prev => ({
       ...prev,
-      attachments: [...prev.attachments, ...files]
+      attachments: [...prev.attachments, ...files] as File[]
     }));
   };
 
@@ -867,14 +867,15 @@ const Dashboard = () => {
                         </div>
                       ))}
                     </div>
-                  
-                  <div className="text-center mt-4">
-                    <Button 
-                      className="bg-learner-500 hover:bg-learner-600"
-                      onClick={() => setIsHomeworkModalOpen(true)}
-                    >
-                      Create New Assignment
-                    </Button>
+                    
+                    <div className="text-center mt-4">
+                      <Button 
+                        className="bg-learner-500 hover:bg-learner-600"
+                        onClick={() => setIsHomeworkModalOpen(true)}
+                      >
+                        Create New Assignment
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

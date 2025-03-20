@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
   const [credentials, setCredentials] = useState(null);
