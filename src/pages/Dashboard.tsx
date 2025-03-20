@@ -282,19 +282,22 @@ const QuickAction = ({
   label, 
   to, 
   color = 'text-gray-500',
-  onClick
+  onClick,
+  disabled
 }: { 
   icon: React.ElementType; 
   label: string; 
   to?: string; 
   color?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) => {
   if (onClick) {
     return (
       <button 
         onClick={onClick} 
-        className="flex flex-col items-center gap-2 transition-transform hover:scale-105"
+        className={`flex flex-col items-center gap-2 transition-transform hover:scale-105 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
+        disabled={disabled}
       >
         <div className={`w-12 h-12 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center ${color}`}>
           <Icon size={20} />
@@ -305,7 +308,7 @@ const QuickAction = ({
   }
   
   return (
-    <Link to={to || "#"} className="flex flex-col items-center gap-2 transition-transform hover:scale-105">
+    <Link to={to || "#"} className={`flex flex-col items-center gap-2 transition-transform hover:scale-105 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className={`w-12 h-12 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center ${color}`}>
         <Icon size={20} />
       </div>
