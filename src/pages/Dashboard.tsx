@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -117,7 +116,6 @@ const getActivities = () => {
       id: '1',
       type: 'reward',
       description: 'Outstanding contribution in science class',
-      points: 5,
       teacherId: '2',
       teacherName: 'John Smith',
       date: '2023-09-15'
@@ -135,7 +133,6 @@ const getActivities = () => {
       id: '3',
       type: 'reward',
       description: 'Helping a classmate with math problems',
-      points: 3,
       teacherId: '2',
       teacherName: 'John Smith',
       date: '2023-09-05'
@@ -172,7 +169,7 @@ const ActivityCard = ({ activity, onDelete }) => {
                 <AlertTriangle className="text-amber-500" size={18} />
               }
               <span className={`text-sm font-medium ${isReward ? 'text-green-600' : 'text-amber-600'}`}>
-                {isReward ? `Reward • ${activity.points} points` : `Sanction • ${activity.sanctionType || 'General'}`}
+                {isReward ? 'Reward' : `Sanction • ${activity.sanctionType || 'General'}`}
               </span>
             </div>
             <p className="font-medium mb-1">{activity.description}</p>
@@ -236,7 +233,14 @@ const AnnouncementCard = ({ announcement }: { announcement: typeof SAMPLE_ANNOUN
   );
 };
 
-const HomeworkCard = ({ homework, onView }: { homework: any, onView?: (homework: any) => void }) => {
+const HomeworkCard = ({ homework, onView, onDelete }: { 
+  homework: any, 
+  onView?: (homework: any) => void,
+  onDelete?: (id: string) => void 
+}) => {
+  const { user, hasPermission } = useAuth();
+  const canDeleteHomework = user?.role === 'headteacher' || hasPermission('delete_homework');
+  
   const today = new Date();
   const dueDate = new Date(homework.dueDate);
   const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
@@ -266,9 +270,21 @@ const HomeworkCard = ({ homework, onView }: { homework: any, onView?: (homework:
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className={`text-sm ${dueDateClass}`}>{dueDateText}</div>
-          {onView && (
-            <Button variant="outline" size="sm" onClick={() => onView(homework)}>View</Button>
-          )}
+          <div className="flex gap-2">
+            {onView && (
+              <Button variant="outline" size="sm" onClick={() => onView(homework)}>View</Button>
+            )}
+            {onDelete && canDeleteHomework && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                onClick={() => onDelete(homework.id)}
+              >
+                <Trash2 size={14} className="mr-1" /> Delete
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -382,7 +398,7 @@ const CredentialsPopup = ({ open, onClose }) => {
 };
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const getStaggeredStyle = useStaggeredEntrance(5);
   const [activities, setActivities] = useState([]);
@@ -399,6 +415,7 @@ const Dashboard = () => {
   const [isSanctionModalOpen, setIsSanctionModalOpen] = useState(false);
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
   const [isStudentSearchOpen, setIsStudentSearchOpen] = useState(false);
+  const [isRewardStudentSearchOpen, setIsRewardStudentSearchOpen] = useState(false);
   
   const [homeworkForm, setHomeworkForm] = useState({
     title: '',
@@ -411,9 +428,8 @@ const Dashboard = () => {
 
   const [rewardForm, setRewardForm] = useState({
     description: '',
-    points: 1,
     studentId: '',
-    quantity: 1
+    studentSearch: ''
   });
 
   const [sanctionForm, setSanctionForm] = useState({
@@ -425,6 +441,7 @@ const Dashboard = () => {
 
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [filteredStudents, setFilteredStudents] = useState([]);
+  const [homeworkToDelete, setHomeworkToDelete] = useState(null);
 
   // Add missing implementation
   useEffect(() => {
@@ -476,6 +493,24 @@ const Dashboard = () => {
       ...prev,
       attachments: prev.attachments.filter(file => file !== fileToRemove)
     }));
+  };
+
+  const handleDeleteHomework = (homeworkId) => {
+    if (confirm("Are you sure you want to delete this homework assignment?")) {
+      const updatedHomeworks = homeworks.filter(hw => hw.id !== homeworkId);
+      setHomeworks(updatedHomeworks);
+      saveHomeworks(updatedHomeworks);
+      toast.success("Homework deleted successfully");
+    }
+  };
+
+  const filterStudents = (query) => {
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const students = users.filter(u => u.role === 'student');
+    return students.filter(s => 
+      s.fullName.toLowerCase().includes(query.toLowerCase()) ||
+      s.username.toLowerCase().includes(query.toLowerCase())
+    );
   };
   
   return (
@@ -680,6 +715,7 @@ const Dashboard = () => {
                         key={homework.id} 
                         homework={homework} 
                         onView={() => navigate(`/homework/${homework.id}`)}
+                        onDelete={handleDeleteHomework}
                       />
                     ))}
                   </div>
@@ -874,325 +910,3 @@ const Dashboard = () => {
               Add Homework
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Add Reward Modal */}
-      <Dialog open={isRewardModalOpen} onOpenChange={setIsRewardModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Reward</DialogTitle>
-            <DialogDescription>
-              Issue a reward for student achievement
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right" htmlFor="reward-description">
-                Description
-              </Label>
-              <Textarea
-                id="reward-description"
-                value={rewardForm.description}
-                onChange={(e) => setRewardForm({...rewardForm, description: e.target.value})}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right" htmlFor="reward-points">Points</Label>
-              <Input
-                id="reward-points"
-                type="number"
-                min="1"
-                max="10"
-                value={rewardForm.points}
-                onChange={(e) => setRewardForm({...rewardForm, points: parseInt(e.target.value) || 1})}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right" htmlFor="student-id">Student</Label>
-              <div className="col-span-3">
-                <Popover open={isStudentSearchOpen} onOpenChange={setIsStudentSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between"
-                    >
-                      {rewardForm.studentId 
-                        ? filteredStudents.find(s => s.id === rewardForm.studentId)?.fullName || "Select student" 
-                        : "Select student"}
-                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <div className="p-2">
-                      <Input
-                        placeholder="Search students..."
-                        value={studentSearchQuery}
-                        onChange={(e) => {
-                          setStudentSearchQuery(e.target.value);
-                          // Filter students logic
-                          const users = JSON.parse(localStorage.getItem('users') || '[]');
-                          const students = users.filter(u => u.role === 'student');
-                          const filtered = students.filter(s => 
-                            s.fullName.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                            s.username.toLowerCase().includes(e.target.value.toLowerCase())
-                          );
-                          setFilteredStudents(filtered);
-                        }}
-                        className="mb-2"
-                      />
-                      <div className="max-h-[200px] overflow-y-auto">
-                        {filteredStudents.map(student => (
-                          <div
-                            key={student.id}
-                            className="flex items-center p-2 cursor-pointer hover:bg-gray-100 rounded"
-                            onClick={() => {
-                              setRewardForm({...rewardForm, studentId: student.id});
-                              setIsStudentSearchOpen(false);
-                            }}
-                          >
-                            <div className="w-8 h-8 rounded-full bg-learner-100 text-learner-600 flex items-center justify-center mr-2">
-                              {student.fullName.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="font-medium">{student.fullName}</div>
-                              <div className="text-xs text-gray-500">
-                                {student.yearGroup && `Year ${student.yearGroup}`}{student.class && `, Class ${student.class}`}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        {filteredStudents.length === 0 && (
-                          <div className="p-2 text-sm text-gray-500 text-center">
-                            No students found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRewardModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => {
-                // Add reward logic
-                if (!rewardForm.description) {
-                  toast.error('Please enter a description');
-                  return;
-                }
-                
-                if (!rewardForm.studentId) {
-                  toast.error('Please select a student');
-                  return;
-                }
-                
-                const newReward = {
-                  id: Math.random().toString(36).substr(2, 9),
-                  type: 'reward',
-                  description: rewardForm.description,
-                  points: rewardForm.points,
-                  studentId: rewardForm.studentId,
-                  teacherId: user?.id,
-                  teacherName: user?.fullName,
-                  date: new Date().toISOString().split('T')[0]
-                };
-                
-                const updatedActivities = [...activities, newReward];
-                setActivities(updatedActivities);
-                saveActivities(updatedActivities);
-                
-                // Reset form
-                setRewardForm({
-                  description: '',
-                  points: 1,
-                  studentId: '',
-                  quantity: 1
-                });
-                
-                setIsRewardModalOpen(false);
-                toast.success('Reward added successfully');
-              }}
-            >
-              Add Reward
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Add Sanction Modal */}
-      <Dialog open={isSanctionModalOpen} onOpenChange={setIsSanctionModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Sanction</DialogTitle>
-            <DialogDescription>
-              Issue a sanction for student misconduct
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right" htmlFor="sanction-description">
-                Description
-              </Label>
-              <Textarea
-                id="sanction-description"
-                value={sanctionForm.description}
-                onChange={(e) => setSanctionForm({...sanctionForm, description: e.target.value})}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right" htmlFor="sanction-type">Type</Label>
-              <Select 
-                value={sanctionForm.sanctionType}
-                onValueChange={(value) => setSanctionForm({...sanctionForm, sanctionType: value})}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select sanction type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="Lunchtime Detention">Lunchtime Detention</SelectItem>
-                    <SelectItem value="After School Detention">After School Detention</SelectItem>
-                    <SelectItem value="Verbal Warning">Verbal Warning</SelectItem>
-                    <SelectItem value="Withdrawal from Class">Withdrawal from Class</SelectItem>
-                    <SelectItem value="Contact Parents">Contact Parents</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right" htmlFor="student-id">Student</Label>
-              <div className="col-span-3">
-                <Popover open={isStudentSearchOpen} onOpenChange={setIsStudentSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between"
-                    >
-                      {sanctionForm.studentId 
-                        ? filteredStudents.find(s => s.id === sanctionForm.studentId)?.fullName || "Select student" 
-                        : "Select student"}
-                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <div className="p-2">
-                      <Input
-                        placeholder="Search students..."
-                        value={studentSearchQuery}
-                        onChange={(e) => {
-                          setStudentSearchQuery(e.target.value);
-                          // Filter students logic
-                          const users = JSON.parse(localStorage.getItem('users') || '[]');
-                          const students = users.filter(u => u.role === 'student');
-                          const filtered = students.filter(s => 
-                            s.fullName.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                            s.username.toLowerCase().includes(e.target.value.toLowerCase())
-                          );
-                          setFilteredStudents(filtered);
-                        }}
-                        className="mb-2"
-                      />
-                      <div className="max-h-[200px] overflow-y-auto">
-                        {filteredStudents.map(student => (
-                          <div
-                            key={student.id}
-                            className="flex items-center p-2 cursor-pointer hover:bg-gray-100 rounded"
-                            onClick={() => {
-                              setSanctionForm({...sanctionForm, studentId: student.id});
-                              setIsStudentSearchOpen(false);
-                            }}
-                          >
-                            <div className="w-8 h-8 rounded-full bg-learner-100 text-learner-600 flex items-center justify-center mr-2">
-                              {student.fullName.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="font-medium">{student.fullName}</div>
-                              <div className="text-xs text-gray-500">
-                                {student.yearGroup && `Year ${student.yearGroup}`}{student.class && `, Class ${student.class}`}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        {filteredStudents.length === 0 && (
-                          <div className="p-2 text-sm text-gray-500 text-center">
-                            No students found
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsSanctionModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={() => {
-                // Add sanction logic
-                if (!sanctionForm.description) {
-                  toast.error('Please enter a description');
-                  return;
-                }
-                
-                if (!sanctionForm.studentId) {
-                  toast.error('Please select a student');
-                  return;
-                }
-                
-                const newSanction = {
-                  id: Math.random().toString(36).substr(2, 9),
-                  type: 'sanction',
-                  description: sanctionForm.description,
-                  sanctionType: sanctionForm.sanctionType,
-                  studentId: sanctionForm.studentId,
-                  teacherId: user?.id,
-                  teacherName: user?.fullName,
-                  date: new Date().toISOString().split('T')[0]
-                };
-                
-                const updatedActivities = [...activities, newSanction];
-                setActivities(updatedActivities);
-                saveActivities(updatedActivities);
-                
-                // Reset form
-                setSanctionForm({
-                  description: '',
-                  sanctionType: 'Lunchtime Detention',
-                  studentId: '',
-                  studentSearch: ''
-                });
-                
-                setIsSanctionModalOpen(false);
-                toast.success('Sanction added successfully');
-              }}
-            >
-              Add Sanction
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Credentials Modal */}
-      <CredentialsPopup
-        open={isCredentialsModalOpen}
-        onClose={() => setIsCredentialsModalOpen(false)}
-      />
-    </div>
-  );
-};
-
-export default Dashboard;

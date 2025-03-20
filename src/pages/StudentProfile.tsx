@@ -29,7 +29,6 @@ interface Activity {
   id: string;
   type: 'reward' | 'sanction';
   description: string;
-  points?: number;
   sanctionType?: string;
   teacherId: string;
   teacherName: string;
@@ -61,7 +60,6 @@ const StudentProfile = () => {
   const [stats, setStats] = useState({
     totalRewards: 0,
     totalSanctions: 0,
-    rewardPoints: 0,
     completedHomework: 0,
     pendingHomework: 0
   });
@@ -86,18 +84,16 @@ const StudentProfile = () => {
     // Load activities
     const loadActivities = () => {
       const allActivities = JSON.parse(localStorage.getItem('student_activities') || '[]');
-      const studentActivities = allActivities.filter(a => a.id === id);
+      const studentActivities = allActivities.filter(a => a.studentId === id);
       setActivities(studentActivities);
       
       // Calculate stats
-      let rewardPoints = 0;
       let totalRewards = 0;
       let totalSanctions = 0;
       
       studentActivities.forEach(activity => {
         if (activity.type === 'reward') {
           totalRewards++;
-          rewardPoints += activity.points || 1;
         } else {
           totalSanctions++;
         }
@@ -107,8 +103,7 @@ const StudentProfile = () => {
       setStats(prev => ({
         ...prev,
         totalRewards,
-        totalSanctions,
-        rewardPoints
+        totalSanctions
       }));
     };
     
@@ -151,7 +146,7 @@ const StudentProfile = () => {
     
     // Find exact activity to delete (matching description, date, type)
     const updatedActivities = allActivities.filter(a => 
-      !(a.id === id && 
+      !(a.studentId === id && 
         a.date === activity.date && 
         a.description === activity.description &&
         a.type === activity.type)
@@ -161,18 +156,16 @@ const StudentProfile = () => {
     localStorage.setItem('student_activities', JSON.stringify(updatedActivities));
     
     // Update local state
-    const studentActivities = updatedActivities.filter(a => a.id === id);
+    const studentActivities = updatedActivities.filter(a => a.studentId === id);
     setActivities(studentActivities);
     
     // Recalculate stats
-    let rewardPoints = 0;
     let totalRewards = 0;
     let totalSanctions = 0;
     
     studentActivities.forEach(a => {
       if (a.type === 'reward') {
         totalRewards++;
-        rewardPoints += a.points || 1;
       } else {
         totalSanctions++;
       }
@@ -182,8 +175,7 @@ const StudentProfile = () => {
     setStats(prev => ({
       ...prev,
       totalRewards,
-      totalSanctions,
-      rewardPoints
+      totalSanctions
     }));
     
     toast.success(`${activity.type === 'reward' ? 'Reward' : 'Sanction'} deleted successfully`);
@@ -246,7 +238,6 @@ const StudentProfile = () => {
               <span className="text-sm font-medium">Rewards</span>
             </div>
             <div className="text-2xl font-medium">{stats.totalRewards}</div>
-            <div className="text-sm text-gray-500">{stats.rewardPoints} points total</div>
           </CardContent>
         </Card>
         
@@ -312,7 +303,7 @@ const StudentProfile = () => {
                           }
                           <span className={`text-sm font-medium ${activity.type === 'reward' ? 'text-green-600' : 'text-amber-600'}`}>
                             {activity.type === 'reward' ? 
-                              `Reward • ${activity.points || 1} points` : 
+                              'Reward' : 
                               `Sanction • ${activity.sanctionType || 'General'}`}
                           </span>
                         </div>

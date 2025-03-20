@@ -14,10 +14,21 @@ import {
   Check, 
   Clock,
   FileText,
-  Paperclip
+  Paperclip,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface HomeworkAttachment {
   id: string;
@@ -38,10 +49,13 @@ interface HomeworkItem {
 }
 
 const Homework = () => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const [homeworks, setHomeworks] = useState<HomeworkItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [homeworkToDelete, setHomeworkToDelete] = useState<string | null>(null);
+
+  const canDeleteHomework = user?.role === 'headteacher' || hasPermission('delete_homework');
 
   useEffect(() => {
     if (!user) {
@@ -71,6 +85,12 @@ const Homework = () => {
   }, [user, navigate]);
 
   const markAsCompleted = (homeworkId: string) => {
+    // Only students can mark homework as completed
+    if (user?.role !== 'student') {
+      toast.error("Only students can mark homework as completed");
+      return;
+    }
+
     // Update local state
     const updatedHomeworks = homeworks.map(hw => 
       hw.id === homeworkId ? { ...hw, completed: true } : hw
@@ -84,6 +104,20 @@ const Homework = () => {
     localStorage.setItem(`homework_completion_${user?.id}`, JSON.stringify(completedHomeworks));
     
     toast.success("Homework marked as completed!");
+  };
+
+  const deleteHomework = (homeworkId: string) => {
+    if (!canDeleteHomework) return;
+
+    // Filter out the homework to delete
+    const updatedHomeworks = homeworks.filter(hw => hw.id !== homeworkId);
+    setHomeworks(updatedHomeworks);
+    
+    // Save to localStorage
+    localStorage.setItem('homeworks', JSON.stringify(updatedHomeworks));
+    
+    toast.success("Homework deleted successfully");
+    setHomeworkToDelete(null);
   };
 
   // Format due date for display
@@ -166,22 +200,56 @@ const Homework = () => {
                   <div className="text-sm text-gray-500 flex items-center">
                     <Clock size={16} className="mr-1" /> {formatDueDate(homework.dueDate)}
                   </div>
-                  {!homework.completed && (
-                    <Button 
-                      onClick={() => markAsCompleted(homework.id)}
-                      variant="outline"
-                      size="sm"
-                      className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                    >
-                      <Check size={16} className="mr-1" /> Mark as completed
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {!homework.completed && user?.role === 'student' && (
+                      <Button 
+                        onClick={() => markAsCompleted(homework.id)}
+                        variant="outline"
+                        size="sm"
+                        className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                      >
+                        <Check size={16} className="mr-1" /> Mark as completed
+                      </Button>
+                    )}
+                    
+                    {canDeleteHomework && (
+                      <Button
+                        onClick={() => setHomeworkToDelete(homework.id)}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Trash2 size={16} className="mr-1" /> Delete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!homeworkToDelete} onOpenChange={() => setHomeworkToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Homework</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this homework assignment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => homeworkToDelete && deleteHomework(homeworkToDelete)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

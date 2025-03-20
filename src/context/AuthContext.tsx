@@ -14,7 +14,8 @@ export type Permission =
   | 'view_user_credentials'
   | 'set_sanctions'
   | 'set_rewards'
-  | 'make_announcements';
+  | 'make_announcements'
+  | 'delete_homework';
 
 // Define user interface
 export interface User {
@@ -52,7 +53,8 @@ const HEADTEACHER_ACCOUNT = {
     'view_user_credentials',
     'set_sanctions',
     'set_rewards',
-    'make_announcements'
+    'make_announcements',
+    'delete_homework'
   ] as Permission[]
 };
 
@@ -65,7 +67,7 @@ const INITIAL_USERS = [
     password: 'password123',
     fullName: 'John Smith',
     role: 'teacher' as UserRole,
-    permissions: ['set_homework', 'set_sanctions', 'set_rewards', 'make_announcements'] as Permission[]
+    permissions: ['set_homework', 'set_sanctions', 'set_rewards', 'make_announcements', 'delete_homework'] as Permission[]
   },
   {
     id: '3',
